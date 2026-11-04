@@ -1,0 +1,20 @@
+{
+  "siteName": "yoursite",
+  "readOnly": false,
+  "timeoutMs": 30000,
+  "projectPresets": {
+    "automation": {
+      "description": "Projects that only hold automated work",
+      "namePrefix": "Automation - ",
+      "categoryId": 12345,
+      "features": {
+        "tasks": true,
+        "notebook": true,
+        "comments": true,
+        "messages": false,
+        "time": false,
+        "billing": false
+      }
+    }
+  }
+}

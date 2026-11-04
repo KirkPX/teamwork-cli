@@ -1,0 +1,62 @@
+{
+  "name": "teamwork-cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Command line for Teamwork.com on macOS, Windows and Linux.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KirkPX/teamwork-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/KirkPX/teamwork-cli/issues"
+  },
+  "homepage": "https://github.com/KirkPX/teamwork-cli#readme",
+  "bin": {
+    "teamwork": "./dist/index.js",
+    "tw": "./dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE",
+    "examples/"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "pretest": "npm run build",
+    "setup": "npm ci && npm link && node dist/index.js doctor --install",
+    "dev": "tsx src/index.ts",
+    "doctor": "node dist/index.js doctor",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "smoke": "node dist/index.js --help",
+    "prepare": "npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@napi-rs/keyring": "^1.3.0",
+    "commander": "^14.0.3",
+    "picocolors": "^1.0.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "tsup": "^8.1.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.3",
+    "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "esbuild": "^0.28.1"
+  },
+  "license": "MIT",
+  "author": "KirkPX",
+  "keywords": [
+    "teamwork",
+    "cli",
+    "project-management"
+  ]
+}

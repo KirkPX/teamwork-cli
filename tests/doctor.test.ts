@@ -1,0 +1,86 @@
+import { chmod, mkdtemp, rm, symlink, writeFile, mkdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { commandOnPathCheck } from "../src/cli/commands/doctor.js";
+
+describe("commandOnPathCheck", () => {
+  let dir: string;
+  let binDir: string;
+  let ownEntry: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "teamwork-doctor-"));
+    binDir = path.join(dir, "bin");
+    await mkdir(binDir);
+    ownEntry = path.join(dir, "dist", "index.js");
+    await mkdir(path.dirname(ownEntry));
+    await writeFile(ownEntry, "#!/usr/bin/env node\n", "utf-8");
+    await chmod(ownEntry, 0o755);
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it("warns when no teamwork command is on PATH", () => {
+    const result = commandOnPathCheck({ PATH: binDir }, "linux", ownEntry);
+    expect(result.ok).toBe(false);
+    expect(result.value).toContain("not found");
+    expect(result.fix?.join(" ")).toContain("npm link");
+  });
+
+  it("points Windows users at %APPDATA%\\npm and a new terminal", () => {
+    const result = commandOnPathCheck({ PATH: binDir }, "win32", ownEntry);
+    expect(result.ok).toBe(false);
+    const fix = result.fix?.join(" ") ?? "";
+    expect(fix).toContain("%APPDATA%\\npm");
+    expect(fix).toContain("NEW terminal");
+  });
+
+  it("passes when the shim resolves back to this build", async () => {
+    const shim = path.join(binDir, "teamwork");
+    await symlink(ownEntry, shim);
+
+    const result = commandOnPathCheck({ PATH: binDir }, "linux", ownEntry);
+    expect(result.ok).toBe(true);
+    expect(result.value).toBe(shim);
+  });
+
+  // Finding a `teamwork` on PATH is not enough: a different tool may be the one that runs.
+  it("reports a different teamwork of the same name as shadowing", async () => {
+    const impostor = path.join(binDir, "teamwork");
+    await writeFile(impostor, "#!/usr/bin/env python3\n", "utf-8");
+    await chmod(impostor, 0o755);
+
+    const result = commandOnPathCheck({ PATH: binDir }, "linux", ownEntry);
+    expect(result.ok).toBe(false);
+    expect(result.value).toContain("shadowed");
+    expect(result.value).toContain(impostor);
+  });
+
+  it("accepts a Windows .cmd shim that references the package", async () => {
+    // npm writes wrapper scripts on Windows rather than symlinks, so there is
+    // no path to compare — the wrapper's contents are the only evidence.
+    await writeFile(
+      path.join(binDir, "teamwork.cmd"),
+      '@"%~dp0\\node_modules\\teamwork-cli\\dist\\index.js" %*\r\n',
+      "utf-8"
+    );
+
+    const result = commandOnPathCheck({ PATH: binDir }, "win32", ownEntry);
+    expect(result.ok).toBe(true);
+  });
+
+  it("rejects a Windows .cmd shim belonging to something else", async () => {
+    await writeFile(
+      path.join(binDir, "teamwork.cmd"),
+      '@"%~dp0\\some-other-tool\\main.py" %*\r\n',
+      "utf-8"
+    );
+
+    const result = commandOnPathCheck({ PATH: binDir }, "win32", ownEntry);
+    expect(result.ok).toBe(false);
+    expect(result.value).toContain("shadowed");
+  });
+});
