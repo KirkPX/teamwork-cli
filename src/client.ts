@@ -2,7 +2,10 @@ import { ApiError, NetworkError, TimeoutError, UsageError, WriteNotSavedError, r
 
 export type TeamworkClientOptions = {
   siteName: string;
-  /** Overrides `https://<site>.teamwork.com`. Tests point it at a closed local port. */
+  /**
+   * Overrides `https://<site>.teamwork.com`. Only tests use it, and
+   * `createClient` accepts only an address on this machine.
+   */
   baseUrl?: string;
   apiKey: string;
   timeoutMs?: number;
