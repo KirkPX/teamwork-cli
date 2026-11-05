@@ -9,7 +9,8 @@ import {
   projectUpdate,
 } from "../src/cli/commands/project.js";
 import { peopleList, timeList } from "../src/cli/commands/directory.js";
-import { apiCommand } from "../src/cli/commands/api.js";
+import { apiCommand, readRequestBody } from "../src/cli/commands/api.js";
+import { Readable } from "node:stream";
 import { TeamworkClient } from "../src/client.js";
 
 const originalConfigFile = process.env.TEAMWORK_CLI_CONFIG_FILE;
@@ -200,5 +201,36 @@ describe("api", () => {
       await expect(apiCommand("/x", { data: "{", json: true })).rejects.toThrow("valid JSON");
       await expect(apiCommand("/x", { param: ["novalue"], json: true })).rejects.toThrow("key=value");
     });
+  });
+});
+
+describe("api request body input", () => {
+  // Spaces and non-English characters in both the folder and the file name, as
+  // a Windows or macOS user's documents folder often has.
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "tw body café "));
+  });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("reads --data @file and --data-file from a path with spaces and non-English characters", async () => {
+    const file = join(dir, "réponse ünïcode 日本.json");
+    writeFileSync(file, '{"comment":{"body":"Fertig — 完了"}}', "utf-8");
+    expect(await readRequestBody({ data: `@${file}` })).toBe('{"comment":{"body":"Fertig — 完了"}}');
+    expect(await readRequestBody({ dataFile: file })).toBe('{"comment":{"body":"Fertig — 完了"}}');
+  });
+
+  it("reads --data - from standard input", async () => {
+    const stdin = Readable.from([Buffer.from('{"a":'), Buffer.from("1}")]);
+    expect(await readRequestBody({ data: "-" }, stdin)).toBe('{"a":1}');
+  });
+
+  it("refuses --data - at a terminal, and names a missing file", async () => {
+    const tty = Object.assign(Readable.from([]), { isTTY: true });
+    await expect(readRequestBody({ data: "-" }, tty)).rejects.toThrow("nothing is piped in");
+    await expect(readRequestBody({ data: `@${join(dir, "missing.json")}` })).rejects.toThrow(
+      "the file does not exist"
+    );
+    await expect(readRequestBody({ data: "{}", dataFile: "x" })).rejects.toThrow("not both");
   });
 });
