@@ -148,7 +148,7 @@ taskCmd
 
 taskCmd
   .command("bulk-update")
-  .description("Bulk update tasks")
+  .description("Bulk update tasks (destructive)")
   .option("--task-ids <ids>", "Comma-separated task IDs")
   .option("--tasklist-id <id>", "Update all tasks in this tasklist", Number)
   .option("--due-date <date>", "Due date (YYYY-MM-DD)")
@@ -157,6 +157,7 @@ taskCmd
   .option("--priority <level>", "Priority: low, medium, high")
   .option("--progress <n>", "Progress percentage (0-100)", Number)
   .option("--dry-run", "Show what would be updated")
+  .option("--yes", "Skip confirmation")
   .action(async (opts) => {
     const { taskBulkUpdate } = await import("./cli/commands/task.js");
     await taskBulkUpdate({ ...program.opts(), ...opts });
@@ -306,9 +307,11 @@ projCmd
 
 projCmd
   .command("archive")
-  .description("Archive or unarchive a project")
+  .description("Archive or unarchive a project (destructive)")
   .requiredOption("--project <input>", "Project ID or URL")
   .option("--unarchive", "Unarchive instead")
+  .option("--dry-run", "Show what would be done")
+  .option("--yes", "Skip the archive confirmation")
   .action(async (opts) => {
     const { projectArchive } = await import("./cli/commands/project.js");
     await projectArchive({ ...program.opts(), ...opts });
