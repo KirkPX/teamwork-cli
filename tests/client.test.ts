@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { TeamworkClient, buildUrl } from "../src/client.js";
-import { ApiError, TimeoutError, WriteNotSavedError } from "../src/errors.js";
+import { ApiError, NetworkError, TimeoutError, WriteNotSavedError } from "../src/errors.js";
 
 function makeClient() {
   return new TeamworkClient({
@@ -510,6 +510,39 @@ describe("task estimates", () => {
     await expect(makeClient().createTask(7, { name: "t", estimateMinutes: 30 })).rejects.toBeInstanceOf(
       WriteNotSavedError
     );
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("network failures read as plain messages", () => {
+  it("names the host and the reason when the site cannot be reached", async () => {
+    const cause = Object.assign(new Error("getaddrinfo ENOTFOUND"), { code: "ENOTFOUND" });
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed", { cause })));
+    const client = new TeamworkClient({ siteName: "acmecorp", apiKey: "k", maxRetries: 1 });
+    const error = await client.request("/projects.json").catch((e) => e);
+    expect(error).toBeInstanceOf(NetworkError);
+    expect(error.message).toBe("GET /projects.json could not reach acmecorp.teamwork.com (ENOTFOUND).");
+    expect(error.hint).toContain("teamwork doctor");
+    vi.unstubAllGlobals();
+  });
+
+  it("stops a reply that starts and then stalls", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const body = new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode('{"projects":['));
+            init.signal?.addEventListener("abort", () =>
+              controller.error(new DOMException("aborted", "AbortError"))
+            );
+          },
+        });
+        return new Response(body, { status: 200, headers: { "content-type": "application/json" } });
+      })
+    );
+    const client = new TeamworkClient({ siteName: "acmecorp", apiKey: "k", timeoutMs: 50 });
+    await expect(client.request("/projects.json")).rejects.toBeInstanceOf(TimeoutError);
     vi.unstubAllGlobals();
   });
 });

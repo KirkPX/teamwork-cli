@@ -50,6 +50,27 @@ export class TimeoutError extends Error {
 }
 
 /**
+ * The request never got an answer: no connection, an unknown host, a reset.
+ * `hint` is the next step, printed by the top-level handler.
+ */
+export class NetworkError extends Error {
+  readonly operation: string;
+  readonly host: string;
+  readonly hint: string;
+
+  constructor(opts: { operation: string; host: string; cause?: unknown }) {
+    const code = (opts.cause as { cause?: { code?: unknown } } | undefined)?.cause?.code;
+    const reason = typeof code === "string" ? ` (${code})` : "";
+    super(`${opts.operation} could not reach ${opts.host}${reason}.`, { cause: opts.cause });
+    this.name = "NetworkError";
+    this.operation = opts.operation;
+    this.host = opts.host;
+    this.hint =
+      "Check your internet connection and the site name. `teamwork doctor` shows the site in use.";
+  }
+}
+
+/**
  * The CLI is not set up correctly, or was invoked in a way it cannot act on.
  * `hint` is the next step, printed by the top-level handler.
  */

@@ -1,3 +1,4 @@
+import { readOptionFile } from "../read-file.js";
 import { UsageError } from "../../errors.js";
 import { createClient } from "../client-helpers.js";
 import { reporter } from "../output.js";
@@ -31,10 +32,7 @@ export async function notebookCreate(opts: {
   const client = createClient();
 
   let content = opts.content;
-  if (opts.file) {
-    const fs = await import("node:fs/promises");
-    content = await fs.readFile(opts.file, "utf-8");
-  }
+  if (opts.file) content = await readOptionFile("--file", opts.file);
 
   if (!content) {
     throw new UsageError("Either --content or --file is required.");
@@ -62,10 +60,7 @@ export async function notebookUpdate(opts: {
   const client = createClient();
 
   let content = opts.content;
-  if (opts.file) {
-    const fs = await import("node:fs/promises");
-    content = await fs.readFile(opts.file, "utf-8");
-  }
+  if (opts.file) content = await readOptionFile("--file", opts.file);
 
   if (!opts.name && !content && !opts.description) {
     throw new UsageError(
