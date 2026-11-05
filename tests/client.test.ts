@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { TeamworkClient, buildUrl } from "../src/client.js";
-import { ApiError, TimeoutError } from "../src/errors.js";
+import { ApiError, TimeoutError, WriteNotSavedError } from "../src/errors.js";
 
 function makeClient() {
   return new TeamworkClient({
@@ -464,6 +464,52 @@ describe("buildUrl keeps requests on the signed-in site", () => {
     await expect(client.request("//other.example/x")).rejects.toThrow("Refusing");
     await expect(client.requestBytes("https://other.example/f")).rejects.toThrow("Refusing");
     expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("task estimates", () => {
+  // Teamwork takes `estimatedMinutes` on a write and returns `estimateMinutes`.
+  // It drops a write field it does not know, with no error.
+  function stubTaskReply(estimateMinutes: number) {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ task: { id: 5, estimateMinutes } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+  const sentTask = (fetchMock: ReturnType<typeof vi.fn>) =>
+    JSON.parse((fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].body as string).task;
+
+  it("create sends estimatedMinutes", async () => {
+    const fetchMock = stubTaskReply(45);
+    await makeClient().createTask(7, { name: "t", estimateMinutes: 45 });
+    expect(sentTask(fetchMock)).toMatchObject({ estimatedMinutes: 45 });
+    expect(sentTask(fetchMock)).not.toHaveProperty("estimateMinutes");
+    vi.unstubAllGlobals();
+  });
+
+  it("update sends estimatedMinutes, including 0 to clear it", async () => {
+    let fetchMock = stubTaskReply(30);
+    await makeClient().updateTask(5, { estimateMinutes: 30 });
+    expect(sentTask(fetchMock)).toEqual({ estimatedMinutes: 30 });
+    fetchMock = stubTaskReply(0);
+    await makeClient().updateTask(5, { estimateMinutes: 0 });
+    expect(sentTask(fetchMock)).toEqual({ estimatedMinutes: 0 });
+    vi.unstubAllGlobals();
+  });
+
+  it("fails when Teamwork answers OK but did not save the estimate", async () => {
+    stubTaskReply(0);
+    await expect(makeClient().updateTask(5, { estimateMinutes: 30 })).rejects.toThrow(
+      "saved an estimate of 0 minutes, not 30"
+    );
+    await expect(makeClient().createTask(7, { name: "t", estimateMinutes: 30 })).rejects.toBeInstanceOf(
+      WriteNotSavedError
+    );
     vi.unstubAllGlobals();
   });
 });
