@@ -230,7 +230,7 @@ teamwork projects update-features --project 12345 --enable notebook comments --d
 teamwork projects set-category --project 12345 --category-id 678
 teamwork projects add-member --project 12345 --user-ids 111 222
 teamwork projects add-member --project 12345 --me
-teamwork projects archive --project 12345            # --unarchive to reverse
+teamwork projects archive --project 12345 --dry-run  # asks first; --yes skips; --unarchive reverses
 teamwork projects delete-incomplete-tasks --project 12345 --dry-run
 ```
 
@@ -314,7 +314,7 @@ Update, delete and bulk-change tasks (**all mutate Teamwork data**):
 ```bash
 teamwork tasks update --task-id 123 --due-date 2026-08-15 --estimate-minutes 60
 teamwork tasks delete --task-id 123 --yes
-teamwork tasks bulk-update --tasklist-id 67890 --priority high --dry-run
+teamwork tasks bulk-update --tasklist-id 67890 --priority high --dry-run   # asks first; --yes skips
 teamwork tasks bulk-delete --task-ids 123,456 --dry-run
 ```
 

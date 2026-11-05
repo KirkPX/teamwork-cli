@@ -65,3 +65,30 @@ describe("resolveIdList", () => {
     }
   });
 });
+
+// A write to many tasks, or one that hides a project from the whole site, asks
+// first. With no terminal to ask at and no --yes, it must stop before any
+// network call and exit 1. The fake credentials would fail any real request.
+describe("writes that ask first", () => {
+  async function run(...args: string[]) {
+    return exec("node", [distIndex, ...args], { env }).catch(
+      (e: { code: number; stdout: string; stderr: string }) => e
+    );
+  }
+
+  it.each([
+    [["tasks", "bulk-update", "--task-ids", "1,2", "--priority", "high"], "nothing was updated"],
+    [["projects", "archive", "--project", "123"], "nothing was archived"],
+  ])("%j refuses without --yes", async (args, summary) => {
+    const result = (await run(...args)) as { code: number; stdout: string };
+    expect(result.code).toBe(1);
+    const outcome = JSON.parse(result.stdout);
+    expect(outcome).toMatchObject({ aborted: true, changed: false, summary: expect.stringContaining(summary) });
+    expect(outcome.hint).toContain("--yes");
+  });
+
+  it("projects archive --dry-run says what would change", async () => {
+    const { stdout } = await exec("node", [distIndex, "projects", "archive", "--project", "123", "--dry-run"], { env });
+    expect(JSON.parse(stdout)).toMatchObject({ dryRun: true, projectId: 123, status: "archived" });
+  });
+});
