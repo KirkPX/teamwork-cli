@@ -2,6 +2,8 @@ import { ApiError, NetworkError, TimeoutError, UsageError, WriteNotSavedError, r
 
 export type TeamworkClientOptions = {
   siteName: string;
+  /** Overrides `https://<site>.teamwork.com`. Tests point it at a closed local port. */
+  baseUrl?: string;
   apiKey: string;
   timeoutMs?: number;
   maxRetries?: number;
@@ -68,7 +70,9 @@ export class TeamworkClient {
   private readonly minInterval = 500;
 
   constructor(options: TeamworkClientOptions) {
-    this.baseUrl = normalizeBaseUrl(options.siteName);
+    this.baseUrl = options.baseUrl
+      ? new URL(options.baseUrl).origin
+      : normalizeBaseUrl(options.siteName);
     this.apiKey = options.apiKey;
     this.timeoutMs = options.timeoutMs ?? 30_000;
     this.maxRetries = options.maxRetries ?? 3;

@@ -6,7 +6,15 @@ export function createClient(): TeamworkClient {
   const { siteName, apiKey, timeoutMs } = resolveConfig();
   requireSiteName(siteName);
   requireApiKey(apiKey);
-  return new TeamworkClient({ siteName, apiKey, timeoutMs, onRetry: reportRetry });
+  return new TeamworkClient({
+    siteName,
+    // For tests and self-hosted proxies. Every request still goes only to this
+    // one address.
+    baseUrl: process.env.TEAMWORK_BASE_URL || undefined,
+    apiKey,
+    timeoutMs,
+    onRetry: reportRetry,
+  });
 }
 
 function reportRetry(info: {
