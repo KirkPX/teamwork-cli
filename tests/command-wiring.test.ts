@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import path from "path";
@@ -28,39 +28,53 @@ function subcommandsOf(helpText: string): string[] {
 //      own command, and the handler reads whichever object is empty.
 //   2. Reading opts.yes without declaring --yes. The flag is rejected as unknown
 //      and the command cannot run non-interactively.
-describe("command wiring", () => {
-  it("every destructive command declares --yes", async () => {
-    const groups = subcommandsOf(await help());
-    const missing: string[] = [];
-    let checked = 0;
+type HelpPage = { group: string; sub?: string; text: string };
 
-    for (const group of groups) {
-      for (const sub of subcommandsOf(await help(group))) {
-        const text = await help(group, sub);
-        if (!text.includes("(destructive)")) continue;
-        checked++;
-        if (!/^\s+--yes\b/m.test(text)) missing.push(`${group} ${sub}`);
-      }
-    }
+/**
+ * The help text of the root, every group and every subcommand, fetched once.
+ * Each page is a new Node process, so the pages for one group load in
+ * parallel. Fetched one at a time, the walk took over 5 seconds on a Windows
+ * CI machine.
+ */
+async function walkHelp(): Promise<{ root: string; pages: HelpPage[] }> {
+  const root = await help();
+  const groups = await Promise.all(
+    subcommandsOf(root).map(async (group) => ({ group, text: await help(group) }))
+  );
+  const subs = await Promise.all(
+    groups.flatMap(({ group, text }) =>
+      subcommandsOf(text).map(async (sub) => ({ group, sub, text: await help(group, sub) }))
+    )
+  );
+  return { root, pages: [...groups, ...subs] };
+}
+
+describe("command wiring", () => {
+  let root = "";
+  let pages: HelpPage[] = [];
+  beforeAll(async () => {
+    ({ root, pages } = await walkHelp());
+  }, 60_000);
+
+  it("every destructive command declares --yes", () => {
+    const destructive = pages.filter((p) => p.sub && p.text.includes("(destructive)"));
+    const missing = destructive
+      .filter((p) => !/^\s+--yes\b/m.test(p.text))
+      .map((p) => `${p.group} ${p.sub}`);
 
     // A command that prompts but cannot be bypassed is unusable in scripts and CI.
     expect(missing).toEqual([]);
-    expect(checked).toBeGreaterThan(0); // the walk must actually find some
+    expect(destructive.length).toBeGreaterThan(0); // the walk must actually find some
   });
 
-  it("--json is a global root flag, so one declaration serves every command", async () => {
-    expect(await help()).toContain("--json");
+  it("--json is a global root flag, so one declaration serves every command", () => {
+    expect(root).toContain("--json");
   });
 
-  it("no subcommand re-declares --json", async () => {
-    const shadowed: string[] = [];
-    for (const group of subcommandsOf(await help())) {
-      const groupHelp = await help(group);
-      if (/^\s+--json\b/m.test(groupHelp)) shadowed.push(group);
-      for (const sub of subcommandsOf(groupHelp)) {
-        if (/^\s+--json\b/m.test(await help(group, sub))) shadowed.push(`${group} ${sub}`);
-      }
-    }
+  it("no subcommand re-declares --json", () => {
+    const shadowed = pages
+      .filter((p) => /^\s+--json\b/m.test(p.text))
+      .map((p) => (p.sub ? `${p.group} ${p.sub}` : p.group));
     // Two declarations is how a CLI ends up with divergent behavior between
     // `cli --json sub` and `cli sub --json`.
     expect(shadowed).toEqual([]);
