@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
+import { parseCount, parseId, parsePercent } from "./cli/parse.js";
 
 const program = new Command();
 
@@ -97,7 +98,7 @@ taskCmd
   .command("list")
   .description("List tasks in a project")
   .requiredOption("--project <input>", "Project ID or URL")
-  .option("--tasklist-id <id>", "Only tasks in this tasklist", Number)
+  .option("--tasklist-id <id>", "Only tasks in this tasklist", parseId)
   .action(async (opts) => {
     const { taskList } = await import("./cli/commands/task.js");
     await taskList({ ...program.opts(), ...opts });
@@ -106,14 +107,14 @@ taskCmd
 taskCmd
   .command("create")
   .description("Create a task")
-  .requiredOption("--tasklist-id <id>", "Tasklist ID", Number)
+  .requiredOption("--tasklist-id <id>", "Tasklist ID", parseId)
   .requiredOption("--name <name>", "Task name")
   .option("--description <desc>", "Task description")
   .option("--assignees <ids>", "Comma-separated user IDs")
   .option("--start-date <date>", "Start date (YYYY-MM-DD)")
   .option("--due-date <date>", "Due date (YYYY-MM-DD)")
   .option("--priority <level>", "Priority: low, medium, high")
-  .option("--estimate-minutes <n>", "Time estimate in minutes", Number)
+  .option("--estimate-minutes <n>", "Time estimate in minutes", parseCount)
   .option("--no-notify", "Suppress assignee notifications")
   .action(async (opts) => {
     const { taskCreate } = await import("./cli/commands/task.js");
@@ -123,14 +124,14 @@ taskCmd
 taskCmd
   .command("update")
   .description("Update a task")
-  .requiredOption("--task-id <id>", "Task ID", Number)
+  .requiredOption("--task-id <id>", "Task ID", parseId)
   .option("--name <name>", "New task name")
   .option("--description <desc>", "New description")
   .option("--assignees <ids>", "Comma-separated user IDs")
   .option("--start-date <date>", "Start date (YYYY-MM-DD)")
   .option("--due-date <date>", "Due date (YYYY-MM-DD)")
   .option("--priority <level>", "Priority: low, medium, high")
-  .option("--estimate-minutes <n>", "Time estimate in minutes", Number)
+  .option("--estimate-minutes <n>", "Time estimate in minutes", parseCount)
   .action(async (opts) => {
     const { taskUpdate } = await import("./cli/commands/task.js");
     await taskUpdate({ ...program.opts(), ...opts });
@@ -139,7 +140,7 @@ taskCmd
 taskCmd
   .command("delete")
   .description("Delete a task (destructive)")
-  .requiredOption("--task-id <id>", "Task ID", Number)
+  .requiredOption("--task-id <id>", "Task ID", parseId)
   .option("--yes", "Skip confirmation")
   .action(async (opts) => {
     const { taskDelete } = await import("./cli/commands/task.js");
@@ -150,12 +151,12 @@ taskCmd
   .command("bulk-update")
   .description("Bulk update tasks")
   .option("--task-ids <ids>", "Comma-separated task IDs")
-  .option("--tasklist-id <id>", "Update all tasks in this tasklist", Number)
+  .option("--tasklist-id <id>", "Update all tasks in this tasklist", parseId)
   .option("--due-date <date>", "Due date (YYYY-MM-DD)")
   .option("--start-date <date>", "Start date (YYYY-MM-DD)")
-  .option("--estimate-minutes <n>", "Time estimate in minutes", Number)
+  .option("--estimate-minutes <n>", "Time estimate in minutes", parseCount)
   .option("--priority <level>", "Priority: low, medium, high")
-  .option("--progress <n>", "Progress percentage (0-100)", Number)
+  .option("--progress <n>", "Progress percentage (0-100)", parsePercent)
   .option("--dry-run", "Show what would be updated")
   .action(async (opts) => {
     const { taskBulkUpdate } = await import("./cli/commands/task.js");
@@ -166,7 +167,7 @@ taskCmd
   .command("bulk-delete")
   .description("Bulk delete tasks (destructive)")
   .option("--task-ids <ids>", "Comma-separated task IDs")
-  .option("--tasklist-id <id>", "Delete all tasks in this tasklist", Number)
+  .option("--tasklist-id <id>", "Delete all tasks in this tasklist", parseId)
   .option("--delete-list", "Also delete the tasklist")
   .option("--dry-run", "Show what would be deleted")
   .option("--yes", "Skip confirmation")
@@ -182,7 +183,7 @@ const nbCmd = program
 nbCmd
   .command("list")
   .description("List notebooks in a project")
-  .requiredOption("--project-id <id>", "Project ID", Number)
+  .requiredOption("--project-id <id>", "Project ID", parseId)
   .action(async (opts) => {
     const { notebookList } = await import("./cli/commands/notebook.js");
     await notebookList({ ...program.opts(), ...opts });
@@ -191,7 +192,7 @@ nbCmd
 nbCmd
   .command("create")
   .description("Create a notebook")
-  .requiredOption("--project-id <id>", "Project ID", Number)
+  .requiredOption("--project-id <id>", "Project ID", parseId)
   .requiredOption("--name <name>", "Notebook name")
   .option("--content <html>", "HTML content")
   .option("--file <path>", "Read content from file")
@@ -204,7 +205,7 @@ nbCmd
 nbCmd
   .command("update")
   .description("Update a notebook")
-  .requiredOption("--notebook-id <id>", "Notebook ID", Number)
+  .requiredOption("--notebook-id <id>", "Notebook ID", parseId)
   .option("--name <name>", "New name")
   .option("--content <html>", "New content")
   .option("--file <path>", "Read content from file")
@@ -217,7 +218,7 @@ nbCmd
 nbCmd
   .command("delete")
   .description("Delete a notebook (destructive)")
-  .requiredOption("--notebook-id <id>", "Notebook ID", Number)
+  .requiredOption("--notebook-id <id>", "Notebook ID", parseId)
   .option("--yes", "Skip confirmation")
   .action(async (opts) => {
     const { notebookDelete } = await import("./cli/commands/notebook.js");
@@ -242,7 +243,7 @@ projCmd
   .description("Create a project")
   .requiredOption("--name <name>", "Project name")
   .option("--description <desc>", "Project description")
-  .option("--company-id <id>", "Company ID", Number)
+  .option("--company-id <id>", "Company ID", parseId)
   .option("--start-date <date>", "Start date (YYYY-MM-DD)")
   .option("--end-date <date>", "End date (YYYY-MM-DD)")
   .option("--dry-run", "Show what would be created")
@@ -276,7 +277,7 @@ projCmd
   .command("set-category")
   .description("Set project category")
   .requiredOption("--project <input>", "Project ID or URL")
-  .requiredOption("--category-id <id>", "Category ID", Number)
+  .requiredOption("--category-id <id>", "Category ID", parseId)
   .option("--dry-run", "Show what would be done")
   .action(async (opts) => {
     const { projectSetCategory } = await import("./cli/commands/project.js");
@@ -297,7 +298,7 @@ projCmd
 projCmd
   .command("list-archived")
   .description("List archived projects")
-  .option("--category <id>", "Filter by category ID", Number)
+  .option("--category <id>", "Filter by category ID", parseId)
   .option("--search <text>", "Filter by name substring")
   .action(async (opts) => {
     const { projectListArchived } = await import("./cli/commands/project.js");
@@ -343,7 +344,7 @@ projCmd
   .requiredOption("--project <input>", "Project ID or URL")
   .option("--name <name>", "New project name")
   .option("--description <desc>", "New description")
-  .option("--category-id <id>", "Category ID", Number)
+  .option("--category-id <id>", "Category ID", parseId)
   .option("--start-date <date>", "Start date (YYYYMMDD)")
   .option("--end-date <date>", "End date (YYYYMMDD)")
   .option("--dry-run", "Show what would be done")
@@ -417,7 +418,7 @@ const tasklistCmd = program
 tasklistCmd
   .command("list")
   .description("List tasklists in a project")
-  .requiredOption("--project-id <id>", "Project ID", Number)
+  .requiredOption("--project-id <id>", "Project ID", parseId)
   .action(async (opts) => {
     const { tasklistList } = await import("./cli/commands/tasklist.js");
     await tasklistList({ ...program.opts(), ...opts });
@@ -426,7 +427,7 @@ tasklistCmd
 tasklistCmd
   .command("create")
   .description("Create a tasklist")
-  .requiredOption("--project-id <id>", "Project ID", Number)
+  .requiredOption("--project-id <id>", "Project ID", parseId)
   .requiredOption("--name <name>", "Tasklist name")
   .option("--description <desc>", "Tasklist description")
   .option("--add-to-top", "Add to the top of the project's tasklists")
@@ -439,7 +440,7 @@ tasklistCmd
 tasklistCmd
   .command("update")
   .description("Update a tasklist")
-  .requiredOption("--tasklist-id <id>", "Tasklist ID", Number)
+  .requiredOption("--tasklist-id <id>", "Tasklist ID", parseId)
   .option("--name <name>", "New name")
   .option("--description <desc>", "New description")
   .option("--dry-run", "Show what would be updated")
@@ -451,7 +452,7 @@ tasklistCmd
 tasklistCmd
   .command("delete")
   .description("Delete a tasklist (destructive)")
-  .requiredOption("--tasklist-id <id>", "Tasklist ID", Number)
+  .requiredOption("--tasklist-id <id>", "Tasklist ID", parseId)
   .option("--yes", "Skip confirmation")
   .action(async (opts) => {
     const { tasklistDelete } = await import("./cli/commands/tasklist.js");
@@ -465,7 +466,7 @@ const fileCmd = program
 fileCmd
   .command("list")
   .description("List files attached to a task")
-  .requiredOption("--task-id <id>", "Task ID", Number)
+  .requiredOption("--task-id <id>", "Task ID", parseId)
   .action(async (opts) => {
     const { fileList } = await import("./cli/commands/file.js");
     await fileList({ ...program.opts(), ...opts });
@@ -474,8 +475,8 @@ fileCmd
 fileCmd
   .command("migrate")
   .description("Copy files from source task(s) to target task(s)")
-  .option("--source <id>", "Source task ID", Number)
-  .option("--target <id>", "Target task ID", Number)
+  .option("--source <id>", "Source task ID", parseId)
+  .option("--target <id>", "Target task ID", parseId)
   .option("--mappings <pairs>", "Comma-separated source:target task pairs")
   .option("--dry-run", "Show what would be migrated")
   .option("--yes", "Skip confirmation")

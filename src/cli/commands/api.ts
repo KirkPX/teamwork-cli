@@ -86,6 +86,11 @@ async function fetchAllPages(
   params: Record<string, string>
 ): Promise<unknown[]> {
   const pageSize = Number(params.pageSize ?? 250);
+  // The last page is the first short one. A size of 0, or one that is not a
+  // number, never gives a short page, so the loop would not end.
+  if (!Number.isInteger(pageSize) || pageSize < 1) {
+    throw new UsageError(`Invalid pageSize "${params.pageSize}". Use a whole number greater than 0.`);
+  }
   const all: unknown[] = [];
   for (let page = 1; ; page++) {
     const { data } = await client.request(path, {
