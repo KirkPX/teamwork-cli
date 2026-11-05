@@ -103,6 +103,17 @@ export async function taskBulkUpdate(opts: Opts): Promise<void> {
     return;
   }
 
+  const confirm = await confirmDestructive(
+    `Update ${taskIds.length} tasks (${Object.keys(updates).join(", ")})?`,
+    { yes: opts.yes, json: opts.json }
+  );
+  if (!confirm.confirmed) {
+    const outcome = abortOutcome(confirm.reason, "Aborted — nothing was updated.");
+    r.result(outcome, pc.dim(outcome.summary));
+    if (confirm.reason === "needs-yes") process.exitCode = 1;
+    return;
+  }
+
   const results: TaskResult[] = [];
 
   for (const taskId of taskIds) {

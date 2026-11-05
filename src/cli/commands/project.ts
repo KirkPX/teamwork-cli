@@ -200,16 +200,42 @@ export async function projectListArchived(
 }
 
 export async function projectArchive(
-  opts: Opts & { project: string; unarchive?: boolean }
+  opts: Opts & { project: string; unarchive?: boolean; dryRun?: boolean; yes?: boolean }
 ): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
   const id = resolveProjectInput(opts.project);
   if (!id) throw new UsageError(`Invalid project identifier: ${opts.project}`);
 
   const status = opts.unarchive ? "active" : "archived";
   const action = opts.unarchive ? "Unarchiving" : "Archiving";
+
+  if (opts.dryRun) {
+    printDryRun(
+      dryRunSummary(true, `Would set project ${id} to ${status}`),
+      true,
+      r,
+      { projectId: id, status }
+    );
+    return;
+  }
+
+  // Archiving hides the project from everyone on the site, so it asks first.
+  // Unarchiving only brings it back.
+  if (!opts.unarchive) {
+    const confirm = await confirmDestructive(`Archive project ${id}?`, {
+      yes: opts.yes,
+      json: opts.json,
+    });
+    if (!confirm.confirmed) {
+      const outcome = abortOutcome(confirm.reason, "Aborted — nothing was archived.");
+      r.result(outcome, pc.dim(outcome.summary));
+      if (confirm.reason === "needs-yes") process.exitCode = 1;
+      return;
+    }
+  }
+
+  const client = createClient();
 
   r.note(`${action} project ${id}...`);
   await client.updateProject(id, { status });

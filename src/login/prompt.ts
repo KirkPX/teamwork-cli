@@ -1,4 +1,5 @@
 import { createInterface, type Interface } from "node:readline";
+import { ask } from "../cli/ask.js";
 
 /**
  * Read a secret from the terminal without echoing it.
@@ -30,14 +31,12 @@ export async function promptSecret(question: string): Promise<string> {
   };
 
   try {
-    return await new Promise<string>((resolve) => {
-      rl.question(question, (answer) => {
-        process.stderr.write("\n");
-        resolve(answer.trim());
-      });
-      masking = true;
-    });
+    const answer = ask(rl, question);
+    masking = true;
+    return (await answer).trim();
   } finally {
+    // The answer's Enter, or the Ctrl-C, was not echoed: end the line.
+    process.stderr.write("\n");
     rl.close();
   }
 }
@@ -48,9 +47,7 @@ export async function promptLine(question: string): Promise<string> {
     output: process.stderr,
   });
   try {
-    return await new Promise<string>((resolve) => {
-      rl.question(question, (answer) => resolve(answer.trim()));
-    });
+    return (await ask(rl, question)).trim();
   } finally {
     rl.close();
   }
