@@ -490,7 +490,14 @@ fileCmd
 
 program.parseAsync(process.argv).catch(async (error: unknown) => {
   const { resolveFormat } = await import("./cli/output.js");
-  const { safeErrorMessage } = await import("./errors.js");
+  const { InterruptedError, safeErrorMessage } = await import("./errors.js");
+
+  // Ctrl-C at a prompt: a person is at the terminal and knows why it stopped.
+  if (error instanceof InterruptedError) {
+    console.error(error.message);
+    process.exitCode = 130;
+    return;
+  }
 
   const raw = error instanceof Error ? error.message : String(error);
   const message = safeErrorMessage(raw);
