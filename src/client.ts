@@ -1,4 +1,4 @@
-import { ApiError, TimeoutError, UsageError, redact } from "./errors.js";
+import { ApiError, TimeoutError, UsageError, WriteNotSavedError, redact } from "./errors.js";
 
 export type TeamworkClientOptions = {
   siteName: string;
@@ -353,7 +353,7 @@ export class TeamworkClient {
     if (opts.startDate) task.startAt = opts.startDate;
     if (opts.dueDate) task.dueAt = opts.dueDate;
     if (opts.priority) task.priority = opts.priority;
-    if (opts.estimateMinutes) task.estimateMinutes = opts.estimateMinutes;
+    if (opts.estimateMinutes !== undefined) task.estimatedMinutes = opts.estimateMinutes;
     if (opts.notify !== undefined) task.notify = opts.notify;
 
     const body: Record<string, unknown> = { task };
@@ -372,6 +372,7 @@ export class TeamworkClient {
       `/projects/api/v3/tasklists/${tasklistId}/tasks.json`,
       { method: "POST", body, params }
     );
+    assertEstimateSaved(data, opts.estimateMinutes, "POST tasks");
     return data;
   }
 
@@ -397,14 +398,15 @@ export class TeamworkClient {
     if (updates.startDate) task.startAt = updates.startDate;
     if (updates.dueDate) task.dueAt = updates.dueDate;
     if (updates.priority) task.priority = updates.priority;
-    if (updates.estimateMinutes)
-      task.estimateMinutes = updates.estimateMinutes;
+    if (updates.estimateMinutes !== undefined)
+      task.estimatedMinutes = updates.estimateMinutes;
     if (updates.progress !== undefined) task.progress = updates.progress;
 
     const { data } = await this.request(
       `/projects/api/v3/tasks/${taskId}.json`,
       { method: "PATCH", body: { task } }
     );
+    assertEstimateSaved(data, updates.estimateMinutes, `PATCH task ${taskId}`);
     return data;
   }
 
@@ -661,6 +663,21 @@ function normalizeBaseUrl(siteName: string) {
     ? siteName
     : `${siteName}.teamwork.com`;
   return `https://${host}`;
+}
+
+/**
+ * Teamwork's task API takes the estimate as `estimatedMinutes` on a write, and
+ * returns it as `estimateMinutes`. It ignores an unknown write field without
+ * an error, so the returned task is checked: a write that reports success but
+ * did not save the estimate fails here instead.
+ */
+function assertEstimateSaved(data: unknown, wanted: number | undefined, operation: string): void {
+  if (wanted === undefined) return;
+  const saved = (data as { task?: { estimateMinutes?: unknown } } | null)?.task?.estimateMinutes;
+  if (saved === undefined || saved === wanted) return;
+  throw new WriteNotSavedError(
+    `${operation}: Teamwork answered OK but saved an estimate of ${String(saved)} minutes, not ${wanted}.`
+  );
 }
 
 /**

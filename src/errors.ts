@@ -21,6 +21,20 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Teamwork answered a write with success, but the returned record does not
+ * hold the value sent. Teamwork drops a field it does not know without an
+ * error, so this is how a wrong field name shows itself.
+ */
+export class WriteNotSavedError extends Error {
+  readonly hint =
+    "Nothing else in the request failed. Read the record back, and report this as a CLI bug.";
+  constructor(message: string) {
+    super(message);
+    this.name = "WriteNotSavedError";
+  }
+}
+
 export class TimeoutError extends Error {
   readonly operation: string;
   readonly timeoutMs: number;
