@@ -36,8 +36,8 @@ that the tool exists first, and prints the URL when it does not. On Windows, the
 argument to `start` is an empty argument, not the two characters `""`: a literal `""`
 reaches `cmd` as a real title and swallows the URL.
 
-**Paths.** Build every path with `path` APIs. Never assume `/`, `/Users/name` or
-`C:\Users\name`. File names are Unicode. Text is read and written as UTF-8. Do not assume a
+**Paths.** Build every path with `path` APIs. Never assume `/` as the separator, or
+that a home folder has a particular name or place: ask `os.homedir()`. File names are Unicode. Text is read and written as UTF-8. Do not assume a
 file system is case-sensitive or case-insensitive, so never rely on two names that differ
 only by case.
 
