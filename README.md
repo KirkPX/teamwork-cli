@@ -440,6 +440,7 @@ The settings file stays until you delete it. `teamwork config path` shows where 
 - [Configuration](docs/configuration.md)
 - [Sign-in design](docs/sign-in.md)
 - [Cross-platform rules](docs/cross-platform.md)
+- [Real Windows test](docs/windows-test.md)
 - [Task notifications](docs/task-notifications.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)
