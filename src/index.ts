@@ -1,6 +1,16 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 
+// Exit cleanly when the reader closes the pipe early (`teamwork tasks list | head`).
+// Without this, the next write to that stream throws EPIPE, and the CLI dies with
+// a stack trace and a non-zero exit. Other stream errors still propagate.
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EPIPE") process.exit(0);
+    throw err;
+  });
+}
+
 const program = new Command();
 
 // --json is declared once, here on the root. Commander still accepts it after a
