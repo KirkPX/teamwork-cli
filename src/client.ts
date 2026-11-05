@@ -1,4 +1,4 @@
-import { ApiError, TimeoutError, UsageError, WriteNotSavedError, redact } from "./errors.js";
+import { ApiError, NetworkError, TimeoutError, UsageError, WriteNotSavedError, redact } from "./errors.js";
 
 export type TeamworkClientOptions = {
   siteName: string;
@@ -86,7 +86,7 @@ export class TeamworkClient {
     const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
 
     for (let attempt = 1; ; attempt++) {
-      const response = await this.fetchWithTimeout(url, operation, {
+      const { response, body: data } = await this.fetchWithTimeout(url, operation, {
         method,
         headers: {
           Accept: "application/json",
@@ -99,9 +99,7 @@ export class TeamworkClient {
         ...(body !== undefined
           ? { body: isFormData ? body : JSON.stringify(body) }
           : {}),
-      });
-
-      const data = await parseResponseBody(response);
+      }, parseResponseBody);
 
       if (response.ok) {
         return { status: response.status, data: data as T | null };
@@ -138,25 +136,30 @@ export class TeamworkClient {
     const operation = `${method} ${pathOrUrl}`;
 
     for (let attempt = 1; ; attempt++) {
-      const response = await this.fetchWithTimeout(url, operation, {
-        method,
-        headers: {
-          Accept: "*/*",
-          ...this.authHeader(),
-          ...extraHeaders,
+      const { response, body } = await this.fetchWithTimeout(
+        url,
+        operation,
+        {
+          method,
+          headers: {
+            Accept: "*/*",
+            ...this.authHeader(),
+            ...extraHeaders,
+          },
         },
-      });
+        async (res) => (res.ok ? new Uint8Array(await res.arrayBuffer()) : await parseResponseBody(res))
+      );
 
       if (response.ok) {
         return {
-          bytes: new Uint8Array(await response.arrayBuffer()),
+          bytes: body as Uint8Array,
           filename: filenameFromHeaders(response.headers),
           contentType:
             response.headers.get("content-type") ?? "application/octet-stream",
         };
       }
 
-      const data = await parseResponseBody(response);
+      const data = body;
       if (isRetryable(response.status, method) && attempt < this.maxRetries) {
         const delayMs = retryDelayMs(response, attempt, this.retryBaseDelayMs);
         this.onRetry?.({
@@ -179,11 +182,17 @@ export class TeamworkClient {
     }
   }
 
-  private async fetchWithTimeout(
+  /**
+   * Send one request and read its body, both inside one time limit. A reply
+   * that starts quickly and then stalls is stopped too, not only one that never
+   * starts.
+   */
+  private async fetchWithTimeout<B>(
     url: string,
     operation: string,
-    init: RequestInit
-  ): Promise<Response> {
+    init: RequestInit,
+    readBody: (response: Response) => Promise<B>
+  ): Promise<{ response: Response; body: B }> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
 
@@ -194,12 +203,17 @@ export class TeamworkClient {
         ...init,
         signal: controller.signal,
       });
-      return response;
+      return { response, body: await readBody(response) };
     } catch (error) {
       if (error instanceof ApiError) throw error;
       // This string names the platform's abort error, not our TimeoutError.
       if (error instanceof Error && error.name === "AbortError") {
         throw new TimeoutError({ operation, timeoutMs: this.timeoutMs });
+      }
+      // fetch reports every network failure as "fetch failed", with the
+      // reason, such as ENOTFOUND, on `cause`.
+      if (error instanceof TypeError) {
+        throw new NetworkError({ operation, host: new URL(url).host, cause: error });
       }
       throw error;
     } finally {
@@ -767,7 +781,9 @@ async function parseResponseBody(
   if (!ct.includes("application/json")) return null;
   try {
     return await response.json();
-  } catch {
+  } catch (error) {
+    // A timeout while the body arrives must reach the caller as a timeout.
+    if (error instanceof Error && error.name === "AbortError") throw error;
     return null;
   }
 }

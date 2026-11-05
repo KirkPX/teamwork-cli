@@ -4,12 +4,13 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A command line for [Teamwork.com](https://www.teamwork.com) on macOS, Windows and
-Linux. Output is readable at a terminal and JSON in a pipe, every write can be
-previewed or blocked, and your key stays in the OS keychain.
+Linux. Output is readable at a terminal and JSON in a pipe. Read-only mode blocks every
+write, bulk and destructive writes can be previewed first, and your key stays in the
+OS keychain.
 
 ```bash
 teamwork projects list
-teamwork tasks create --tasklist-id 67890 --name "Do the thing" --dry-run
+teamwork tasks bulk-update --tasklist-id 67890 --priority high --dry-run
 teamwork projects list | jq '.[0].name'
 ```
 
@@ -147,11 +148,11 @@ $env:TEAMWORK_API_KEY = "your-api-key"
 `TEAMWORK_SITE_NAME` takes the subdomain only. `yoursite` and `yoursite.teamwork.com`
 both work; do not include `https://` or a trailing slash.
 
-Config precedence:
-1. Command flags
-2. Environment variables (`TEAMWORK_SITE_NAME`, `TEAMWORK_API_KEY`)
-3. The settings file (site name) and the OS keychain (key)
-4. Defaults (none — both values are required)
+Where the site and key come from, first match wins:
+1. Environment variables (`TEAMWORK_SITE_NAME`, `TEAMWORK_API_KEY`)
+2. The settings file (site name), and the OS keychain or private credentials file (key)
+
+No command takes the site or key as a flag, and there is no default: both are required.
 
 ## Configure
 
@@ -365,7 +366,9 @@ teamwork files migrate --source 12345 --target 67890 --yes
 teamwork files migrate --mappings "12345:67890,22222:33333" --dry-run
 ```
 
-Use `--json` for scriptable output. Mutating JSON runs should also pass `--yes`; otherwise the command aborts instead of prompting on stdout.
+Use `--json` for scriptable output. A command that asks first does not ask when input
+is not a terminal or `--json` is set. It stops with exit code 1 instead, so scripts pass
+`--yes`. The question itself goes to stderr.
 
 ## Auth
 
@@ -390,8 +393,9 @@ API keys are stored in your OS keychain (macOS Keychain / Windows Credential Man
 
 ## Network Behavior
 
-The CLI rate-limits requests to roughly two per second, and every request carries
-an explicit 30-second timeout.
+The CLI rate-limits requests to roughly two per second. Each request, including reading
+the reply, must finish within 30 seconds, or `timeoutMs` from the settings file. A request
+that cannot reach the site says which host failed and why.
 
 Retries are bounded and visible. A `429` is always retried — the request was
 rejected, so nothing was applied. A `5xx` is retried **only on reads**: a `500`
@@ -419,8 +423,10 @@ policy is blocking npm's `.ps1` shim, not this CLI. Either
 **"Not signed in."** — run `teamwork login`. For automation set
 `TEAMWORK_API_KEY` instead.
 
-**Credentials do not persist between runs** — no OS keychain is available, so the
-CLI fell back to an in-memory store and said so. Use `TEAMWORK_API_KEY`.
+**The key is in a file, not the keychain** — no OS keychain could be used (an SSH
+session on macOS, or Linux with no Secret Service), so the key went to the private
+`credentials.json` in the settings folder, readable only by you. `teamwork doctor` shows
+which store is in use. For automation, set `TEAMWORK_API_KEY` and nothing is stored.
 
 **A destructive command exits without doing anything** — it refused because it
 could not ask. Confirmation is never prompted to a machine: pass `--yes`

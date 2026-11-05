@@ -44,3 +44,18 @@ describe("smoke", () => {
     }
   });
 });
+
+describe("notebooks --file", () => {
+  it("names a missing file in plain words", async () => {
+    process.env.TEAMWORK_SITE_NAME = "test-site";
+    process.env.TEAMWORK_API_KEY = "test-api-key";
+    try {
+      await expect(
+        notebookCreate({ projectId: 1, name: "x", file: path.join(tmpdir(), "no such folder", "x.html"), json: true })
+      ).rejects.toThrow(/--file cannot read ".*x\.html": the file does not exist\./);
+    } finally {
+      delete process.env.TEAMWORK_SITE_NAME;
+      delete process.env.TEAMWORK_API_KEY;
+    }
+  });
+});
