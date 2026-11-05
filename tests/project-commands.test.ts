@@ -195,6 +195,18 @@ describe("api", () => {
     });
   });
 
+  it("--all refuses a page size that would never end the loop", async () => {
+    const req = vi.spyOn(TeamworkClient.prototype, "request");
+    await withCredentials(async () => {
+      for (const size of ["0", "abc", "-1"]) {
+        await expect(
+          apiCommand("/c.json", { all: true, param: [`pageSize=${size}`], json: true })
+        ).rejects.toThrow("Invalid pageSize");
+      }
+      expect(req).not.toHaveBeenCalled();
+    });
+  });
+
   it("rejects bad JSON and bad --param", async () => {
     await withCredentials(async () => {
       await expect(apiCommand("/x", { data: "{", json: true })).rejects.toThrow("valid JSON");
