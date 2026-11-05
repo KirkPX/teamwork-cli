@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { TeamworkClient } from "../src/client.js";
+import { TeamworkClient, buildUrl } from "../src/client.js";
 import { ApiError, TimeoutError } from "../src/errors.js";
 
 function makeClient() {
@@ -284,7 +284,7 @@ describe("TeamworkClient", () => {
             file: {
               id: 12,
               name: "fallback.txt",
-              versions: [{ downloadURL: "https://files.example/download" }],
+              versions: [{ downloadURL: "https://test-site.teamwork.com/projects/api/v3/files/1/download" }],
             },
           }),
           { status: 200, headers: { "content-type": "application/json" } }
@@ -433,5 +433,37 @@ describe("TeamworkClient", () => {
     expect(init?.body).toBe(
       JSON.stringify({ file: { pendingFileRef: "pending-ref", description: "A file" } })
     );
+  });
+});
+
+describe("buildUrl keeps requests on the signed-in site", () => {
+  const base = "https://acmecorp.teamwork.com";
+
+  it("accepts paths and full addresses on the site", () => {
+    expect(buildUrl(base, "/projects.json", { page: 2 })).toBe("https://acmecorp.teamwork.com/projects.json?page=2");
+    expect(buildUrl(base, "projects.json")).toBe("https://acmecorp.teamwork.com/projects.json");
+    expect(buildUrl(base, "https://acmecorp.teamwork.com/files/1/download")).toBe(
+      "https://acmecorp.teamwork.com/files/1/download"
+    );
+  });
+
+  it.each([
+    "//other.example/x",
+    "/\\other.example/x",
+    "https://other.example/x",
+    "http://acmecorp.teamwork.com/x",
+    "https://acmecorp.teamwork.com.other.example/x",
+  ])("refuses %s", (path) => {
+    expect(() => buildUrl(base, path)).toThrow("requests go only to acmecorp.teamwork.com");
+  });
+
+  it("refuses before any request is sent", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new TeamworkClient({ siteName: "acmecorp", apiKey: "secret-key" });
+    await expect(client.request("//other.example/x")).rejects.toThrow("Refusing");
+    await expect(client.requestBytes("https://other.example/f")).rejects.toThrow("Refusing");
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 });

@@ -72,6 +72,17 @@ export class LoginError extends ConfigError {
   }
 }
 
+/**
+ * The person pressed Ctrl-C at a prompt. The top-level handler exits 130, the
+ * code a shell gives a command stopped by Ctrl-C.
+ */
+export class InterruptedError extends Error {
+  constructor() {
+    super("Cancelled.");
+    this.name = "InterruptedError";
+  }
+}
+
 export function redact(value: string, show = 4): string {
   if (value.length <= show + 4) return "****";
   return value.slice(0, show) + "****" + value.slice(-show);

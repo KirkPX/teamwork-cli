@@ -230,7 +230,7 @@ teamwork projects update-features --project 12345 --enable notebook comments --d
 teamwork projects set-category --project 12345 --category-id 678
 teamwork projects add-member --project 12345 --user-ids 111 222
 teamwork projects add-member --project 12345 --me
-teamwork projects archive --project 12345            # --unarchive to reverse
+teamwork projects archive --project 12345 --dry-run  # asks first; --yes skips; --unarchive reverses
 teamwork projects delete-incomplete-tasks --project 12345 --dry-run
 ```
 
@@ -273,7 +273,16 @@ teamwork api /comments/456.json --method DELETE --yes
 ```
 
 - `--param key=value` adds query parameters. Repeat it, or list several after one flag.
-- `--data-file <path>` reads the JSON body from a file.
+- `--data @<path>` reads the JSON body from a file, and `--data -` reads it from
+  standard input. `--data-file <path>` does the same as `--data @<path>`.
+- In PowerShell, pass the body from a file or standard input. PowerShell removes the
+  double quotes inside a typed JSON argument, so `--data '{...}'` arrives broken:
+
+  ```powershell
+  '{"comment":{"body":"Done","notify":""}}' | teamwork api /tasks/123/comments.json --method POST --data -
+  teamwork api /tasks/123/comments.json --method POST --data "@comment.json"
+  ```
+
 - `--all` follows page numbers and returns every item. It works with GET only.
 - Every method except GET obeys `--read-only`. DELETE asks first, unless you pass `--yes`.
 
@@ -314,7 +323,7 @@ Update, delete and bulk-change tasks (**all mutate Teamwork data**):
 ```bash
 teamwork tasks update --task-id 123 --due-date 2026-08-15 --estimate-minutes 60
 teamwork tasks delete --task-id 123 --yes
-teamwork tasks bulk-update --tasklist-id 67890 --priority high --dry-run
+teamwork tasks bulk-update --tasklist-id 67890 --priority high --dry-run   # asks first; --yes skips
 teamwork tasks bulk-delete --task-ids 123,456 --dry-run
 ```
 
@@ -440,6 +449,7 @@ The settings file stays until you delete it. `teamwork config path` shows where 
 - [Configuration](docs/configuration.md)
 - [Sign-in design](docs/sign-in.md)
 - [Cross-platform rules](docs/cross-platform.md)
+- [Real Windows test](docs/windows-test.md)
 - [Task notifications](docs/task-notifications.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security policy](SECURITY.md)

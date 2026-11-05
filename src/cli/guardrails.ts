@@ -1,5 +1,6 @@
 import pc from "picocolors";
 import { createInterface } from "readline";
+import { ask } from "./ask.js";
 import type { Reporter } from "./output.js";
 import { ConfigError } from "../errors.js";
 import { loadSettings } from "../settings.js";
@@ -112,9 +113,7 @@ export async function confirmDestructive(
   });
 
   try {
-    const answer = await new Promise<string>((resolve) => {
-      rl.question(`${message} (y/N) `, resolve);
-    });
+    const answer = await ask(rl, `${message} (y/N) `);
     return answer.trim().toLowerCase() === "y"
       ? { confirmed: true }
       : { confirmed: false, reason: "declined" };

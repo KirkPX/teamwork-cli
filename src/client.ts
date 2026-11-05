@@ -1,4 +1,4 @@
-import { ApiError, TimeoutError, redact } from "./errors.js";
+import { ApiError, TimeoutError, UsageError, redact } from "./errors.js";
 
 export type TeamworkClientOptions = {
   siteName: string;
@@ -663,12 +663,23 @@ function normalizeBaseUrl(siteName: string) {
   return `https://${host}`;
 }
 
-function buildUrl(
+/**
+ * The full address for a request. It must stay on the signed-in site, because
+ * every request carries the API key. A path such as `//other.example/x` or an
+ * absolute address elsewhere would otherwise send the key to that host.
+ */
+export function buildUrl(
   base: string,
   path: string,
   params?: Record<string, string | number | boolean | undefined>
 ): string {
   const url = new URL(path, base);
+  if (url.origin !== new URL(base).origin) {
+    throw new UsageError(
+      `Refusing to send a request to ${url.host}: requests go only to ${new URL(base).host}.`,
+      "Pass a path on your Teamwork site, such as /projects/api/v3/tasks.json."
+    );
+  }
   if (params) {
     for (const [k, v] of Object.entries(params)) {
       if (v !== undefined) url.searchParams.set(k, String(v));

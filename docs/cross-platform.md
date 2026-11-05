@@ -1,121 +1,80 @@
 # Cross-platform rules
 
-This document defines how `teamwork-cli` must be authored so it stays usable on macOS and Windows.
+`teamwork` works the same way on macOS, Windows and Linux. Each of the three counts
+equally: a change that breaks one of them does not merge.
 
-## Product Standard
+## The promise
 
-The CLI should feel like a small native tool, not a repo script. A Windows user should be able to install it, run `teamwork --help`, configure credentials, and use the same documented commands as a macOS user.
+| | Supported |
+|---|---|
+| Systems | macOS, Windows 10 and later, Linux |
+| Processors | Intel/AMD and ARM. CI proves Intel/AMD and Apple ARM |
+| Node | 20, 22, 24 |
+| Windows shells | PowerShell and Windows Terminal. WSL, Git Bash and Homebrew are never required |
 
-## Runtime
+Commands, options and output are the same everywhere. Only file locations and sign-in
+storage differ.
 
-- Target Node.js 20 or newer.
-- Use TypeScript compiled to ESM JavaScript.
-- Do not rely on Bash, Zsh, PowerShell, `sed`, `awk`, `grep`, `curl`, `open`, `osascript`, or other shell-specific tools for core CLI behavior.
-- If a helper must call an external executable, it must first check that the executable exists and return a clear error when it does not.
-- Prefer Node APIs over shell commands for filesystem, path, HTTP, browser, and process work.
+## Where things go
 
-## Paths And Files
+| | macOS | Windows | Linux |
+|---|---|---|---|
+| Settings | `$XDG_CONFIG_HOME/teamwork-cli/config.json`, or `~/.config/teamwork-cli/config.json` | `%APPDATA%\teamwork-cli\config.json` | Same as macOS |
+| Key, normal | Keychain | Credential Manager | Secret Service, where one runs |
+| Key, keychain closed | Private file, mode 600 (SSH sessions) | Private file. Modes do nothing on Windows, so it relies on the profile folder's permissions (rare) | Private file, mode 600 (servers with no Secret Service) |
+| Key for automation | `TEAMWORK_API_KEY`, stores nothing | Same | Same |
 
-- Always use Node's `path`, `fs`, `os`, and URL APIs instead of string-concatenating paths.
-- Never assume `/` as a path separator.
-- Never assume home directories look like `/Users/name` or `C:\Users\name`.
-- Store user settings in the location `src/paths.ts` defines: `%APPDATA%` on Windows, the XDG folder elsewhere.
-- Keep project-local `.env` support only as a development convenience, not as the primary user config path.
-- Treat filenames as Unicode strings and read/write text as UTF-8 unless a file format explicitly says otherwise.
+`src/paths.ts` chooses the settings folder, and `src/auth.ts` chooses the key store.
+`teamwork doctor` reports which store is in use, and a key save says where the key went.
 
-## Secrets And Auth
+## Rules
 
-- Do not write API keys or tokens into repo files.
-- Support environment variables for CI and automation.
-- For regular users, prefer OS keychain storage when practical. On Windows this means Credential Manager; on macOS this means Keychain.
-- If a secret must be stored outside the OS keychain, the command must make that tradeoff visible to the user.
-- Error messages must never print full API keys or tokens.
+**No shell dependence.** Core behaviour does not use Bash, Zsh, PowerShell, `sed`, `awk`,
+`grep`, `curl`, `open` or `osascript`. It uses Node's `fs`, `path`, `os`, `URL`, `fetch` and
+`child_process`. Opening a browser calls a system tool (`src/login/browser.ts`). It checks
+that the tool exists first, and prints the URL when it does not. On Windows, the title
+argument to `start` is an empty argument, not the two characters `""`: a literal `""`
+reaches `cmd` as a real title and swallows the URL.
 
-## Terminal UX
+**Paths.** Build every path with `path` APIs. Never assume `/` as the separator, or
+that a home folder has a particular name or place: ask `os.homedir()`. File names are Unicode. Text is read and written as UTF-8. Do not assume a
+file system is case-sensitive or case-insensitive, so never rely on two names that differ
+only by case.
 
-- Human output should be plain, readable, and useful without color.
-- Color must be optional decoration, not the only signal.
-- Do not use terminal control sequences that assume a Unix TTY.
-- Detect non-interactive output and avoid spinners/progress animations there.
-- Provide JSON output for commands likely to be scripted.
-- Keep command names and options lowercase, hyphenated, and stable.
+**Line endings.** `.gitattributes` holds `* text=auto eol=lf`, so a Windows checkout cannot
+break the `#!/usr/bin/env node` line.
 
-## Windows Requirements
+**Terminal.** Output reads well with no colour. Colour is decoration, never the only signal.
+Output is UTF-8 and does not depend on a console's code page. Nothing animates when output is
+not a terminal. Ctrl-C at a prompt exits with code 130 and takes the terminal out of raw
+mode, so typing shows again (`src/cli/ask.ts`).
 
-- Commands must run in PowerShell and Windows Terminal.
-- Do not require WSL, Git Bash, Homebrew, or Unix command-line tools.
-- Avoid package choices that require native compilation unless the dependency is essential and tested on Windows CI.
-- Avoid postinstall scripts.
-- Document examples in PowerShell when showing Windows-specific setup.
-- Test any command that reads files with paths containing spaces.
+**Arguments.** PowerShell removes the double quotes inside an argument it passes to a
+program, so JSON typed after an option can arrive broken. Every option that takes JSON also
+accepts `@<path>` and `-` for standard input. Today that is `teamwork api --data`. The
+README shows the PowerShell form.
 
-## macOS Requirements
+**Install.** The README's Windows section covers three things: open a new terminal after
+install, because the path changes; PowerShell's script block (`running scripts is disabled`),
+with the `.cmd` form and the policy command; and `teamwork doctor`. `doctor` reports a
+missing command and a shadowed command (another program answers to `teamwork`) separately,
+and it understands npm's `.cmd` wrapper files.
 
-- Commands must run in Terminal and iTerm without requiring Homebrew-only tools for core behavior.
-- Do not depend on AppleScript, `open`, or Chrome automation for core CLI behavior.
-- Browser-opening helpers may use platform-aware libraries, but core commands must remain usable without them.
+**Native libraries.** `@napi-rs/keyring` is the only native library. It loads lazily, so a
+platform with no build falls back to the private file instead of failing every command.
 
-## Network Behavior
+**Docs.** README examples work on all three systems, or are labelled by system. Windows
+setup examples use PowerShell.
 
-- Every HTTP request must have an explicit timeout.
-- API errors must show the operation, status code, and safe response detail when available.
-- Rate-limit handling must be explicit and visible to the user.
-- Retries should be limited, conservative, and never silently repeat unsafe mutations unless the API operation is known to be idempotent against Teamwork's behavior.
+## Proof
 
-## Destructive Operations
+| Level | What it proves | Where |
+|---|---|---|
+| Simulated | Logic for another system, such as the settings folder and the browser opener, run anywhere by passing the platform in | `tests/config.test.ts`, `tests/login.test.ts`, `tests/doctor.test.ts` |
+| Real CI machine | Tests, the packaged install, `--version` and `doctor`, on all three systems | `.github/workflows/ci.yml` |
+| Real Windows, by a person | The browser opens, Credential Manager saves the key, PowerShell behaves, and a stranger's steps work | [windows-test.md](windows-test.md) |
 
-- Delete, archive, bulk update, and migration commands must show a summary before changing remote data.
-- Destructive commands must require confirmation unless `--yes` is passed.
-- A destructive command must **declare** `--yes`, not merely read `opts.yes`. A command that prompts but cannot be bypassed is unusable in scripts and CI, which is a regression even though it looks safer.
-- Bulk commands should support `--dry-run` before release.
-- Commands must distinguish between "nothing changed" and "changed remote data" in their final output.
+A simulated test is never proof for a real system. A release needs all three levels.
 
-## Command Wiring
-
-Commander binds options to the command they are declared on. Every option a handler reads must be declared on that exact subcommand — reading `opts.x` is not what creates the flag.
-
-- **Declare every option the handler reads.** If a handler branches on `opts.yes`, the subcommand must have `.option("--yes", …)`. Otherwise the flag is rejected as an unknown option and the handler's branch is dead code.
-- **Never declare the same option on both the root program and a subcommand.** Each declaration binds to its own command, and the handler reads whichever object is empty. `--json` is declared once, on the root, and reached through `{ ...program.opts(), ...opts }`.
-- **Options are wiring, not documentation.** A handler's `Opts` type, a doc line, and a commit message all describe intent; only the `.option()` call registers the flag. Type-checking cannot catch the gap, because an undeclared option is a well-typed `undefined`.
-
-Unit tests that call handlers with a literal opts object cannot see these mistakes. Verify option behavior by driving the registered CLI: `tests/command-wiring.test.ts` walks every command's `--help`, and fails when a destructive command omits `--yes` or when a subcommand declares `--json`.
-
-## Packaging
-
-- The package must expose `teamwork` as the primary binary.
-- `tw` can be offered as an alias, but docs should prefer `teamwork` to avoid collisions.
-- Release artifacts must be tested by installing the package the same way a user would.
-- CI must run install, build, typecheck, tests, and CLI smoke tests on Windows, macOS, and Linux.
-
-## Dependency Policy
-
-- Prefer dependencies that are pure JavaScript, actively maintained, and widely used.
-- Every new runtime dependency must buy a clear capability.
-- Do not add UI frameworks, prompt frameworks, or native modules until a command needs them.
-- Avoid dependencies that make install noisy or fragile on Windows.
-
-## Documentation Standard
-
-- README examples must work on macOS and Windows unless explicitly labeled.
-- Provide PowerShell examples for Windows setup.
-- Clearly mark commands that mutate Teamwork data.
-- Document config precedence in this order: command flags, environment variables, user config, defaults.
-- Document how to uninstall and how to remove saved credentials.
-
-## Test Standard
-
-- Unit tests must cover config resolution, path handling, command parsing, payload construction, and error formatting.
-- CLI smoke tests must run through the built binary, not only TypeScript source.
-- Windows CI must test paths with spaces.
-- Network tests should mock Teamwork responses by default. Live API tests must be opt-in.
-
-## Definition Of Release-Ready
-
-Before a release, the project must have:
-
-- A clean install path for macOS and Windows.
-- Passing CI on macOS, Windows, and Linux.
-- No site-specific IDs, names or prefixes in the code. They belong in the settings file.
-- Explicit timeout and safe error handling for every API request.
-- Clear docs for install, configure, first command, troubleshooting, and uninstall.
-- Tests for every command that mutates Teamwork data.
+Every command that reads a file is tested with a path that holds spaces and non-English
+characters (`tests/smoke.test.ts`, `tests/project-commands.test.ts`).

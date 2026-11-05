@@ -150,8 +150,9 @@ function parseMappings(opts: {
 }): TaskMapping[] {
   if (opts.mappings) {
     return opts.mappings.split(",").map((pair) => {
-      const [source, target] = pair.split(":").map((part) => Number(part.trim()));
-      if (!Number.isFinite(source) || !Number.isFinite(target)) {
+      const parts = pair.split(":").map((part) => part.trim());
+      const [source, target] = parts.map(Number);
+      if (parts.length !== 2 || !parts.every((part) => /^[1-9]\d*$/.test(part))) {
         throw new UsageError(`Invalid mapping '${pair}'. Expected source:target.`);
       }
       return { sourceTaskId: source, targetTaskId: target };
