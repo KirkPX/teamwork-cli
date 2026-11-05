@@ -273,7 +273,16 @@ teamwork api /comments/456.json --method DELETE --yes
 ```
 
 - `--param key=value` adds query parameters. Repeat it, or list several after one flag.
-- `--data-file <path>` reads the JSON body from a file.
+- `--data @<path>` reads the JSON body from a file, and `--data -` reads it from
+  standard input. `--data-file <path>` does the same as `--data @<path>`.
+- In PowerShell, pass the body from a file or standard input. PowerShell removes the
+  double quotes inside a typed JSON argument, so `--data '{...}'` arrives broken:
+
+  ```powershell
+  '{"comment":{"body":"Done","notify":""}}' | teamwork api /tasks/123/comments.json --method POST --data -
+  teamwork api /tasks/123/comments.json --method POST --data "@comment.json"
+  ```
+
 - `--all` follows page numbers and returns every item. It works with GET only.
 - Every method except GET obeys `--read-only`. DELETE asks first, unless you pass `--yes`.
 
