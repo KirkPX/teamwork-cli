@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { z } from "zod";
 import { PROJECT_FEATURES } from "./client.js";
-import { ConfigError } from "./errors.js";
+import { ConfigError, UsageError } from "./errors.js";
 import { settingsFilePath } from "./paths.js";
 
 const presetSchema = z
@@ -43,7 +43,11 @@ function parse(value: unknown): Settings {
   const result = settingsSchema.safeParse(value);
   if (result.success) return result.data;
   const detail = result.error.issues
-    .map((issue) => `${issue.path.map(String).join(".") || "settings"}: ${issue.message}`)
+    .map((issue) => {
+      // A bad record key reports "Invalid key in record"; the reason is one level down.
+      const inner = issue.code === "invalid_key" ? issue.issues[0]?.message : undefined;
+      return `${issue.path.map(String).join(".") || "settings"}: ${inner ?? issue.message}`;
+    })
     .join("; ");
   throw new ConfigError(`Invalid settings: ${detail}`, `Settings file: ${settingsFilePath()}`);
 }
@@ -77,10 +81,109 @@ export function updateSettings(patch: Partial<Settings>): void {
   for (const key of Object.keys(merged)) {
     if (merged[key] === undefined) delete merged[key];
   }
-  const next = parse(merged);
+  writeSettings(merged);
+}
+
+function writeSettings(value: Record<string, unknown>): void {
+  const next = parse(value);
   const path = settingsFilePath();
   mkdirSync(dirname(path), { recursive: true });
   const tmp = `${path}.${process.pid}.tmp`;
   writeFileSync(tmp, JSON.stringify(next, null, 2) + "\n", "utf-8");
   renameSync(tmp, path);
+}
+
+type Leaf = "string" | "boolean" | "integer";
+
+/**
+ * What a dotted setting name holds, or null when no such setting exists.
+ * `projectPresets.<preset>.features.<feature>` reaches inside a preset.
+ */
+function leafType(parts: string[]): Leaf | null {
+  const [top, preset, field, feature] = parts;
+  if (parts.length === 1) {
+    if (top === "siteName") return "string";
+    if (top === "readOnly") return "boolean";
+    if (top === "timeoutMs") return "integer";
+    return null;
+  }
+  if (top !== "projectPresets" || !preset) return null;
+  if (parts.length === 3) {
+    if (field === "description" || field === "namePrefix") return "string";
+    if (field === "categoryId") return "integer";
+    return null;
+  }
+  if (parts.length === 4 && field === "features" && feature) return "boolean";
+  return null;
+}
+
+const SETTING_NAMES =
+  "siteName, readOnly, timeoutMs, projectPresets.<preset>.description, .namePrefix, .categoryId or .features.<feature>";
+
+function settingPath(name: string): { parts: string[]; type: Leaf } {
+  const parts = name.split(".");
+  const type = parts.every(Boolean) ? leafType(parts) : null;
+  if (!type) {
+    throw new UsageError(`There is no setting called "${name}".`, `Settings: ${SETTING_NAMES}.`);
+  }
+  return { parts, type };
+}
+
+function coerce(name: string, type: Leaf, raw: string): string | boolean | number {
+  if (type === "boolean") {
+    if (raw === "true") return true;
+    if (raw === "false") return false;
+    throw new UsageError(`${name} takes true or false, not "${raw}".`);
+  }
+  if (type === "integer") {
+    if (/^\d+$/.test(raw)) return Number(raw);
+    throw new UsageError(`${name} takes a whole number, not "${raw}".`);
+  }
+  return raw;
+}
+
+/**
+ * Set one value in the settings file, by its dotted name. The whole file is
+ * checked before it is written, so a bad value never reaches the disk.
+ */
+export function setSetting(name: string, raw: string): Settings {
+  const { parts, type } = settingPath(name);
+  const value = coerce(name, type, raw);
+  const settings = structuredClone(loadSettings()) as Record<string, unknown>;
+  let node = settings;
+  for (const part of parts.slice(0, -1)) {
+    const child = node[part];
+    node[part] = typeof child === "object" && child !== null ? child : {};
+    node = node[part] as Record<string, unknown>;
+  }
+  node[parts[parts.length - 1]!] = value;
+  writeSettings(settings);
+  return loadSettings();
+}
+
+/**
+ * Remove one value from the settings file. A preset can be removed whole with
+ * `projectPresets.<preset>`. Returns false when the value was not set.
+ */
+export function unsetSetting(name: string): boolean {
+  const parts = name.split(".");
+  const isPreset = parts.length === 2 && parts[0] === "projectPresets" && Boolean(parts[1]);
+  if (!isPreset) settingPath(name);
+  const settings = structuredClone(loadSettings()) as Record<string, unknown>;
+  const chain: Record<string, unknown>[] = [settings];
+  for (const part of parts.slice(0, -1)) {
+    const child = chain[chain.length - 1]![part];
+    if (typeof child !== "object" || child === null) return false;
+    chain.push(child as Record<string, unknown>);
+  }
+  const last = parts[parts.length - 1]!;
+  if (!Object.hasOwn(chain[chain.length - 1]!, last)) return false;
+  delete chain[chain.length - 1]![last];
+  // Drop the objects the removal left empty, such as an empty features list.
+  for (let i = chain.length - 1; i > 0; i--) {
+    if (Object.keys(chain[i]!).length > 0) break;
+    delete chain[i - 1]![parts[i - 1]!];
+  }
+  writeSettings(settings);
+  return true;
 }

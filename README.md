@@ -169,9 +169,14 @@ No command takes the site or key as a flag, and there is no default: both are re
 time: your site, read-only mode, the request timeout and named project presets.
 
 ```bash
-teamwork config path    # where the file lives
-teamwork config show    # check it and print it
+teamwork config path                  # where the file lives
+teamwork config show                  # check it and print it
+teamwork config set readOnly true     # change one setting
+teamwork config unset readOnly        # remove it again
 ```
+
+`config set` checks the value before it writes, so you never edit or copy the file
+by hand.
 
 [docs/configuration.md](docs/configuration.md) describes every setting.
 For CI and agents, environment variables skip login entirely. `.env.example` lists
