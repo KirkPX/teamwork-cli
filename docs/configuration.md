@@ -22,6 +22,15 @@ keychain for the key), defaults.
 
 ## Settings
 
+Change a setting with `teamwork config set`, so you never edit or copy the file by
+hand. It checks the value before it writes, and makes the file if there is none:
+
+```bash
+teamwork config set readOnly true
+teamwork config set timeoutMs 60000
+teamwork config unset readOnly
+```
+
 See [examples/config.json](../examples/config.json) for a full file.
 
 | Key | Type | Default | What it does |
@@ -63,6 +72,15 @@ teamwork projects apply-preset --project 12345 --preset automation
 | `namePrefix` | Added to the project name, unless the name already starts with it or you pass `--skip-rename`. |
 | `categoryId` | The category to move the project into. |
 | `features` | Feature names set to `true` or `false`. Features you leave out stay as they are. |
+
+Build a preset with one `config set` line per field. Remove a whole preset with
+`teamwork config unset projectPresets.<preset>`:
+
+```bash
+teamwork config set projectPresets.automation.namePrefix "Automation - "
+teamwork config set projectPresets.automation.categoryId 678
+teamwork config set projectPresets.automation.features.time false
+```
 
 A preset must set at least one of `namePrefix`, `categoryId` or `features`. Preset
 names are lowercase and hyphenated.
