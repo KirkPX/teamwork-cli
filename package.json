@@ -1,6 +1,6 @@
 {
   "name": "teamwork-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Command line for Teamwork.com on macOS, Windows and Linux.",
   "type": "module",
