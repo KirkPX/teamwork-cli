@@ -108,8 +108,13 @@ token never lands in your shell history.
 Running `teamwork` with no arguments does the same thing when you have not signed in
 yet, so first launch is a single word.
 
-To find the token, the page walks you through this: sign in, then profile avatar
-(top-right) → **Edit My Details** → **API & Mobile** → **Show your Token**.
+To find the token, the page walks you through this: sign in, then click your profile
+picture (bottom left, or top right on older layouts) → **Edit My Details** →
+**API & Mobile** → **Show your Token**.
+
+The token is part of your Teamwork profile, so these steps are the same whether you
+sign in to Teamwork with a password, Google or single sign-on. If you cannot see
+**API & Mobile**, ask your site administrator.
 
 Teamwork has no direct link to that tab. It is a dialog rendered on top of
 whatever page you are on, not a route — the URL never changes when you open it —
@@ -426,6 +431,9 @@ policy is blocking npm's `.ps1` shim, not this CLI. Either
 
 **"Not signed in."** — run `teamwork login`. For automation set
 `TEAMWORK_API_KEY` instead.
+
+**"Teamwork refused the key"** — the saved key no longer works, for example because
+it was reset in Teamwork. Run `teamwork login --force` and paste the current token.
 
 **The key is in a file, not the keychain** — no OS keychain could be used (an SSH
 session on macOS, or Linux with no Secret Service), so the key went to the private

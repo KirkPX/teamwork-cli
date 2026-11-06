@@ -49,13 +49,15 @@ export function loginPage(opts: { nonce: string; siteName?: string }): string {
 
   <ol>
     <li>Open Teamwork and sign in.</li>
-    <li>Click your profile avatar, <strong>top-right</strong>.</li>
+    <li>Click your profile picture: <strong>bottom left</strong>, or top right on older layouts.</li>
     <li>Choose <strong>Edit My Details</strong>.</li>
     <li>Open the <strong>API &amp; Mobile</strong> tab.</li>
     <li>Click <strong>Show your Token</strong> and copy it.</li>
   </ol>
   <p class="note">Teamwork has no direct link to that tab — it is a dialog, not
-  a page — so these steps are the only route to the token.</p>
+  a page — so these steps are the only route to the token. They work however you
+  sign in to Teamwork: password, Google or single sign-on. If you cannot see
+  <strong>API &amp; Mobile</strong>, ask your site administrator.</p>
 
   <a class="open-btn" href="${teamworkUrl}" target="_blank" rel="noreferrer">Open Teamwork &rarr;</a>
 

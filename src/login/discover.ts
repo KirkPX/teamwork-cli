@@ -1,7 +1,15 @@
 import { TeamworkClient } from "../client.js";
-import { LoginError } from "../errors.js";
+import { ApiError, LoginError } from "../errors.js";
 
 export { LoginError };
+
+/** Where a person finds their token. The login page, `--paste` and the README give these steps. */
+export const TOKEN_STEPS =
+  "In Teamwork, click your profile picture (bottom left, or top right on older layouts) → Edit My Details → API & Mobile → Show your Token.";
+
+/** The token lives in the profile, so the route is the same however a person signs in. */
+export const SIGN_IN_NOTE =
+  "This works however you sign in to Teamwork: password, Google or single sign-on. If you cannot see API & Mobile, ask your site administrator.";
 
 // Teamwork validates a bare API key here and answers with the account the key
 // belongs to. That is what lets `teamwork login` ask for a key and nothing
@@ -50,6 +58,12 @@ export async function verifyApiKey(
     const me = await client.me();
     person = extractPerson(me);
   } catch (error) {
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+      throw new LoginError(
+        `Teamwork refused that key for ${siteName}.teamwork.com.`,
+        `Copy the token again. ${TOKEN_STEPS} If you use more than one Teamwork site, copy the token from this site.`
+      );
+    }
     const detail = error instanceof Error ? error.message : String(error);
     throw new LoginError(
       `The key did not work against ${siteName}.teamwork.com.`,
@@ -86,7 +100,7 @@ async function discoverSiteName(
   if (response.status === 401) {
     throw new LoginError(
       "Teamwork rejected that API key.",
-      "Copy the token again from Edit My Details → API & Mobile — it is easy to grab a partial string."
+      `Copy the whole token again: it is easy to miss part of it. ${TOKEN_STEPS}`
     );
   }
 
