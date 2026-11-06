@@ -18,18 +18,22 @@ This is an independent project. It is not affiliated with or endorsed by Teamwor
 
 ## Install
 
-You need **Node.js 20 or newer**.
+You need **Node.js 20 or newer** and Git.
 
 ```bash
-npm install -g github:KirkPX/teamwork-cli
+cd ~
+git clone https://github.com/KirkPX/teamwork-cli.git
+cd teamwork-cli
+npm run setup
 teamwork login
 ```
 
-To work on the code, or to run from a clone:
+`cd ~` puts the tool in your home folder. A PowerShell window can open in a system folder, where
+the clone would fail or be hard to find. To update later:
 
 ```bash
-git clone https://github.com/KirkPX/teamwork-cli.git
-cd teamwork-cli
+cd ~/teamwork-cli
+git pull
 npm run setup
 ```
 
@@ -43,15 +47,15 @@ If the `teamwork` command is not reachable yet, it says so and prints the fix.
 
 ### Windows
 
-Install Node first if you do not have it:
+Install Node and Git first if you do not have them:
 
 ```powershell
-winget install OpenJS.NodeJS.LTS
+winget install OpenJS.NodeJS.LTS Git.Git
 ```
 
-Then use the commands above in a **new** PowerShell window, because the Node
-installer changes PATH and an open window keeps the old one. You need no compiler or
-build tools: the keychain dependency ships prebuilt binaries.
+Then use the commands above in a **new** PowerShell window, because the installers
+change PATH and an open window keeps the old one. You need no compiler or build
+tools: the keychain dependency ships prebuilt binaries.
 
 `setup` ends by checking that the `teamwork` command actually resolves, and
 tells you in the terminal either way. It runs through Node directly rather than
@@ -444,11 +448,12 @@ message names it. `teamwork config show` checks the file again after you fix it.
 ## Uninstall
 
 ```bash
-teamwork logout                 # remove saved credentials
+teamwork logout                 # remove saved credentials; run this first
 npm uninstall -g teamwork-cli   # remove the command
 ```
 
-The settings file stays until you delete it. `teamwork config path` shows where it is.
+Then delete the `teamwork-cli` folder you cloned. The settings file stays until you
+delete it. `teamwork config path` shows where it is, before you uninstall.
 
 ## Documentation
 
