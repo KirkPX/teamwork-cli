@@ -22,7 +22,7 @@ const program = new Command();
 program
   .name("teamwork")
   .description("Cross-platform Teamwork.com CLI")
-  .version("0.1.0")
+  .version("0.2.0")
   .option("--json", "emit machine-readable JSON")
   .option("--read-only", "refuse any command that would change remote data")
   .option("--verbose", "emit diagnostic details");
