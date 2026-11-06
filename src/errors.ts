@@ -18,7 +18,21 @@ export class ApiError extends Error {
     this.statusText = opts.statusText;
     this.operation = opts.operation;
     this.safeDetail = opts.safeDetail;
+    this.hint = apiErrorHint(opts.status);
   }
+
+  readonly hint: string | undefined;
+}
+
+/** The next step for a refusal, so a person never sees a bare status code. */
+function apiErrorHint(status: number): string | undefined {
+  if (status === 401) {
+    return "Teamwork refused the key. Run `teamwork login --force` to sign in again. If you set TEAMWORK_API_KEY, check it instead.";
+  }
+  if (status === 403) {
+    return "Your Teamwork account may not have permission for this. Ask a site administrator, or try `teamwork auth` to see which account is in use.";
+  }
+  return undefined;
 }
 
 /**

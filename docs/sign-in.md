@@ -53,8 +53,15 @@ letting the user hunt. Sign-in plus a security code would defeat such a link
 anyway — it would only work for someone already authenticated, who does not need
 it.
 
-The steps the page gives: sign in → profile avatar, **top-right** → Edit My
-Details → API & Mobile → Show your Token.
+The steps the page gives: sign in → profile picture (bottom left, or top right on
+older layouts) → Edit My Details → API & Mobile → Show your Token. The token is part
+of the profile, so the steps are the same for a password, Google or single sign-on
+account. A refused token gets a plain message with these steps again, never a bare
+status code.
+
+A half-finished sign-in never blocks `teamwork login`. A saved site with no key, or
+a key with no site, starts a new sign-in. `--force` is needed only to replace a
+sign-in that is complete.
 
 ## Fallbacks
 

@@ -1,7 +1,7 @@
 import pc from "picocolors";
 import { credentialsFilePath, getCredentialStore } from "../../auth.js";
 import { getSiteName, setSiteName, clearSiteName } from "../../config.js";
-import { LoginError, verifyApiKey, type VerifiedAccount } from "../../login/discover.js";
+import { LoginError, SIGN_IN_NOTE, TOKEN_STEPS, verifyApiKey, type VerifiedAccount } from "../../login/discover.js";
 import { runBrowserLogin } from "../../login/server.js";
 import { promptSecret, promptLine } from "../../login/prompt.js";
 import { reporter } from "../output.js";
@@ -99,8 +99,8 @@ async function browserLogin(): Promise<VerifiedAccount> {
 }
 
 async function pasteLogin(): Promise<VerifiedAccount> {
-  console.error("Find your token in Teamwork: sign in, then profile avatar (top-right)");
-  console.error("→ Edit My Details → API & Mobile → Show your Token.");
+  console.error(TOKEN_STEPS);
+  console.error(SIGN_IN_NOTE);
   console.error("");
 
   const apiKey = await promptSecret("Paste your Teamwork API token: ");
