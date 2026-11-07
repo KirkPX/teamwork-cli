@@ -9,7 +9,8 @@ import {
   projectUpdate,
 } from "../src/cli/commands/project.js";
 import { peopleList, timeList } from "../src/cli/commands/directory.js";
-import { apiCommand, readRequestBody } from "../src/cli/commands/api.js";
+import { apiCommand } from "../src/cli/commands/api.js";
+import { readRequestBody } from "../src/cli/read-file.js";
 import { Readable } from "node:stream";
 import { TeamworkClient } from "../src/client.js";
 

@@ -1,10 +1,9 @@
-import { readFileSync } from "fs";
-import type { Readable } from "stream";
 import pc from "picocolors";
 import { UsageError } from "../../errors.js";
 import type { RequestMethod } from "../../client.js";
 import { createClient } from "../client-helpers.js";
 import { reporter } from "../output.js";
+import { readJsonBody } from "../read-file.js";
 import { abortOutcome, assertWritable, confirmDestructive } from "../guardrails.js";
 
 type ApiOpts = {
@@ -32,15 +31,7 @@ export async function apiCommand(path: string, opts: ApiOpts): Promise<void> {
   }
   if (!path.startsWith("/")) path = `/${path}`;
 
-  const raw = await readRequestBody(opts);
-  let body: unknown;
-  if (raw !== undefined) {
-    try {
-      body = JSON.parse(raw);
-    } catch {
-      throw new UsageError("The request body is not valid JSON.");
-    }
-  }
+  const body = await readJsonBody(opts);
 
   const params: Record<string, string> = {};
   for (const pair of opts.param ?? []) {
@@ -114,46 +105,4 @@ function firstArray(data: unknown): unknown[] | null {
     if (Array.isArray(val)) return val;
   }
   return null;
-}
-
-/**
- * The request body as text, from `--data <json>`, `--data @<path>`,
- * `--data -` (standard input) or `--data-file <path>`.
- *
- * PowerShell strips double quotes inside arguments it passes to a program, so
- * JSON typed on the command line can arrive broken there. A file or standard
- * input reaches the CLI unchanged on every system.
- */
-export async function readRequestBody(
-  opts: Pick<ApiOpts, "data" | "dataFile">,
-  stdin: Readable & { isTTY?: boolean } = process.stdin
-): Promise<string | undefined> {
-  if (opts.data !== undefined && opts.dataFile !== undefined) {
-    throw new UsageError("Pass --data or --data-file, not both.");
-  }
-  if (opts.dataFile !== undefined) return readBodyFile(opts.dataFile);
-  if (opts.data === "-") {
-    if (stdin.isTTY) {
-      throw new UsageError(
-        "--data - reads the body from standard input, but nothing is piped in.",
-        "Pipe the JSON in, or pass --data @<path> to read it from a file."
-      );
-    }
-    let text = "";
-    stdin.setEncoding("utf-8");
-    for await (const chunk of stdin) text += chunk;
-    return text;
-  }
-  if (opts.data?.startsWith("@")) return readBodyFile(opts.data.slice(1));
-  return opts.data;
-}
-
-function readBodyFile(file: string): string {
-  try {
-    return readFileSync(file, "utf-8");
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
-    const reason = code === "ENOENT" ? "the file does not exist" : (code ?? "unknown error");
-    throw new UsageError(`Cannot read the request body from "${file}": ${reason}.`);
-  }
 }
