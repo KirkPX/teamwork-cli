@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.3.0
+
+- **`time list --from/--to` filters again.** It sent filter names Teamwork ignores, so it
+  returned every time entry. Every date option now takes YYYY-MM-DD or YYYYMMDD and
+  refuses an impossible date.
+- **`tasks bulk-delete --delete-list` names the tasklist** in its question and dry run. It
+  needs `--tasklist-id`, and keeps the tasklist when any task could not be deleted.
+- **Teamwork's reason shows when it refuses a request**, as Teamwork wrote it, with a next
+  step for the common refusals. `teamwork api` with a body and no method asks for one.
+- **Dry runs say what would change**, in JSON too, and a real run says what it changed.
+- **Plain errors for local files.** A settings or credentials file that cannot be read or
+  written says why. A damaged credentials file is not written over. A mistyped command
+  prints the JSON error object when the output is JSON.
+- **`teamwork auth --api-key -`** reads the key from standard input, so it stays out of
+  shell history.
+- **Windows.** A JSON body file saved with a byte-order mark is accepted. Ctrl-D at a prompt
+  answers with nothing, instead of ending the CLI as if answered.
+
 ## 0.2.0
 
 - **Install by clone.** `npm install -g github:KirkPX/teamwork-cli` fails on npm 11, so
