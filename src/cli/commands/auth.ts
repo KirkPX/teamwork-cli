@@ -1,4 +1,4 @@
-import { ConfigError } from "../../errors.js";
+import { ConfigError, UsageError } from "../../errors.js";
 import pc from "picocolors";
 import { getCredentialStore } from "../../auth.js";
 import {
@@ -98,8 +98,9 @@ export async function authLoginCommand(opts: AuthLoginOpts): Promise<void> {
   }
 
   if (opts.apiKey) {
+    const apiKey = opts.apiKey === "-" ? await readKeyFromStdin() : opts.apiKey;
     const store = getCredentialStore();
-    const savedTo = store.setApiKey(siteName, opts.apiKey) ?? store.kind;
+    const savedTo = store.setApiKey(siteName, apiKey) ?? store.kind;
 
     if (!store.persistent) {
       r.warn(
@@ -144,4 +145,23 @@ export async function authLogoutCommand(opts: AuthLogoutOpts): Promise<void> {
   clearSiteName();
 
   r.result({ cleared: true, siteName }, pc.green(`Cleared credentials for ${siteName}`));
+}
+
+/**
+ * `--api-key -` reads the key from standard input, so it stays out of shell
+ * history and the process list.
+ */
+async function readKeyFromStdin(stdin: NodeJS.ReadStream = process.stdin): Promise<string> {
+  if (stdin.isTTY) {
+    throw new UsageError(
+      "--api-key - reads the key from standard input, but nothing is piped in.",
+      "Pipe the key in, or run `teamwork login`, which asks for it without showing it."
+    );
+  }
+  let text = "";
+  stdin.setEncoding("utf-8");
+  for await (const chunk of stdin) text += chunk;
+  const key = text.trim();
+  if (!key) throw new UsageError("--api-key - read nothing from standard input.");
+  return key;
 }
