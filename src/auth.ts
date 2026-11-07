@@ -1,4 +1,5 @@
 import { configDir } from "./paths.js";
+import { ConfigError, fileErrorReason } from "./errors.js";
 import { createRequire } from "node:module";
 import {
   chmodSync,
@@ -84,22 +85,41 @@ class FileCredentialStore implements CredentialStore {
     return existsSync(this.path);
   }
 
-  private read(): Record<string, string> {
+  /**
+   * A read for a lookup treats a damaged file as empty. A read before a write
+   * is strict: writing over a damaged file would drop the keys for other sites.
+   */
+  private read(strict = false): Record<string, string> {
     if (!this.exists()) return {};
     try {
       const data = JSON.parse(readFileSync(this.path, "utf-8"));
-      return data && typeof data === "object" ? data : {};
-    } catch {
-      return {};
+      if (data && typeof data === "object" && !Array.isArray(data)) return data;
+    } catch (error) {
+      if (strict && !(error instanceof SyntaxError)) {
+        throw new ConfigError(`Cannot read the credentials file: ${fileErrorReason(error)}.`, `Credentials file: ${this.path}`);
+      }
     }
+    if (!strict) return {};
+    throw new ConfigError(
+      "The credentials file is damaged, so the CLI will not write over the keys in it.",
+      `Move or delete ${this.path}, then run \`teamwork login\`.`
+    );
   }
 
   private write(data: Record<string, string>): void {
-    mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 });
     const tmp = `${this.path}.${process.pid}.tmp`;
-    writeFileSync(tmp, JSON.stringify(data, null, 2) + "\n", { mode: 0o600 });
-    chmodSync(tmp, 0o600);
-    renameSync(tmp, this.path);
+    try {
+      mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 });
+      writeFileSync(tmp, JSON.stringify(data, null, 2) + "\n", { mode: 0o600 });
+      chmodSync(tmp, 0o600);
+      renameSync(tmp, this.path);
+    } catch (error) {
+      rmSync(tmp, { force: true });
+      throw new ConfigError(
+        `Cannot save the credentials file: ${fileErrorReason(error)}.`,
+        `Credentials file: ${this.path}. Check you can write to that folder, or set TEAMWORK_API_KEY instead.`
+      );
+    }
   }
 
   getApiKey(siteName: string): string | null {
@@ -108,12 +128,12 @@ class FileCredentialStore implements CredentialStore {
   }
 
   setApiKey(siteName: string, apiKey: string): "file" {
-    this.write({ ...this.read(), [accountKey(siteName)]: apiKey });
+    this.write({ ...this.read(true), [accountKey(siteName)]: apiKey });
     return "file";
   }
 
   deleteApiKey(siteName: string): void {
-    const data = this.read();
+    const data = this.read(true);
     delete data[accountKey(siteName)];
     if (Object.keys(data).length === 0) rmSync(this.path, { force: true });
     else this.write(data);

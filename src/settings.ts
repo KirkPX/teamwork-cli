@@ -1,8 +1,8 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { z } from "zod";
 import { PROJECT_FEATURES } from "./client.js";
-import { ConfigError, UsageError } from "./errors.js";
+import { ConfigError, UsageError, fileErrorReason } from "./errors.js";
 import { settingsFilePath } from "./paths.js";
 
 const presetSchema = z
@@ -60,7 +60,10 @@ export function loadSettings(): Settings {
     text = readFileSync(path, "utf-8");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return {};
-    throw new ConfigError(`Cannot read the settings file: ${(error as Error).message}`, `Settings file: ${path}`);
+    throw new ConfigError(
+      `Cannot read the settings file: ${fileErrorReason(error)}.`,
+      `Settings file: ${path}. Run \`teamwork config path\` to see where it should be.`
+    );
   }
   let value: unknown;
   try {
@@ -87,10 +90,18 @@ export function updateSettings(patch: Partial<Settings>): void {
 function writeSettings(value: Record<string, unknown>): void {
   const next = parse(value);
   const path = settingsFilePath();
-  mkdirSync(dirname(path), { recursive: true });
   const tmp = `${path}.${process.pid}.tmp`;
-  writeFileSync(tmp, JSON.stringify(next, null, 2) + "\n", "utf-8");
-  renameSync(tmp, path);
+  try {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(tmp, JSON.stringify(next, null, 2) + "\n", "utf-8");
+    renameSync(tmp, path);
+  } catch (error) {
+    rmSync(tmp, { force: true });
+    throw new ConfigError(
+      `Cannot save the settings file: ${fileErrorReason(error)}.`,
+      `Settings file: ${path}. Check the folder exists and you can write to it, or point TEAMWORK_CLI_CONFIG_FILE at another file.`
+    );
+  }
 }
 
 type Leaf = "string" | "boolean" | "integer";

@@ -33,7 +33,8 @@ describe("number option parsers", () => {
     ]).catch((e: { code: number; stderr: string }) => e);
     expect((failed as { code: number }).code).toBe(1);
     expect((failed as { stderr: string }).stderr).toContain("--progress");
-    expect((failed as { stderr: string }).stderr).toContain('not "x"');
+    // Not a terminal, so the error is the JSON envelope.
+    expect(JSON.parse((failed as { stderr: string }).stderr).message).toContain('not "x"');
   });
 });
 
