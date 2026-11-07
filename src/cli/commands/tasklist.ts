@@ -42,7 +42,8 @@ export async function tasklistCreate(
         `Would create tasklist "${opts.name}" in project ${opts.projectId}`
       ),
       true,
-      r
+      r,
+      { projectId: opts.projectId, name: opts.name }
     );
     return;
   }
@@ -83,10 +84,14 @@ export async function tasklistUpdate(
   }
 
   if (opts.dryRun) {
+    const planned = Object.fromEntries(
+      Object.entries({ name: opts.name, description: opts.description }).filter(([, v]) => v !== undefined)
+    );
     printDryRun(
-      dryRunSummary(true, `Would update tasklist ${opts.tasklistId}`),
+      dryRunSummary(true, `Would update tasklist ${opts.tasklistId}: ${Object.keys(planned).join(", ")}`),
       true,
-      r
+      r,
+      { tasklistId: opts.tasklistId, updates: planned }
     );
     return;
   }
