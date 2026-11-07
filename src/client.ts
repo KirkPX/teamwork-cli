@@ -328,8 +328,10 @@ export class TeamworkClient {
   ) {
     const params: Record<string, string> = {};
     if (projectId) params.projectIds = String(projectId);
-    if (fromDate) params.fromdate = fromDate;
-    if (toDate) params.todate = toDate;
+    // The v3 time API filters on startDate and endDate. It ignores the v1 names
+    // fromdate and todate without an error, and returns every entry.
+    if (fromDate) params.startDate = isoDate(fromDate);
+    if (toDate) params.endDate = isoDate(toDate);
     return this.paginated("/projects/api/v3/time.json", { params });
   }
 
@@ -447,8 +449,8 @@ export class TeamworkClient {
     const project: Record<string, unknown> = { name: opts.name };
     if (opts.description) project.description = opts.description;
     if (opts.companyId) project.companyId = opts.companyId;
-    if (opts.startDate) project.startDate = opts.startDate;
-    if (opts.endDate) project.endDate = opts.endDate;
+    if (opts.startDate) project.startDate = v1Date(opts.startDate);
+    if (opts.endDate) project.endDate = v1Date(opts.endDate);
     const { data } = await this.request("/projects.json", {
       method: "POST",
       body: { project },
@@ -474,8 +476,8 @@ export class TeamworkClient {
       project.description = updates.description;
     if (updates.categoryId)
       project["category-id"] = String(updates.categoryId);
-    if (updates.startDate) project.startDate = updates.startDate;
-    if (updates.endDate) project.endDate = updates.endDate;
+    if (updates.startDate) project.startDate = v1Date(updates.startDate);
+    if (updates.endDate) project.endDate = v1Date(updates.endDate);
     if (updates.status) project.status = updates.status;
 
     if (updates.features) {
@@ -827,4 +829,14 @@ function extractSafeDetail(data: unknown): string {
   const msg = obj.message || obj.error || obj.msg;
   if (typeof msg === "string") return redact(msg, 20);
   return "no response detail";
+}
+
+/** The v1 project API reads and returns dates as YYYYMMDD. */
+function v1Date(date: string): string {
+  return date.replaceAll("-", "");
+}
+
+/** The v3 API reads dates as YYYY-MM-DD. */
+function isoDate(date: string): string {
+  return date.replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3");
 }

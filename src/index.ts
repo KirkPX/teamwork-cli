@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { parseCount, parseId, parsePercent } from "./cli/parse.js";
+import { parseCount, parseDate, parseId, parsePercent } from "./cli/parse.js";
 
 // Exit cleanly when the reader closes the pipe early (`teamwork tasks list | head`).
 // Without this, the next write to that stream throws EPIPE, and the CLI dies with
@@ -137,8 +137,8 @@ taskCmd
   .requiredOption("--name <name>", "Task name")
   .option("--description <desc>", "Task description")
   .option("--assignees <ids>", "Comma-separated user IDs")
-  .option("--start-date <date>", "Start date (YYYY-MM-DD)")
-  .option("--due-date <date>", "Due date (YYYY-MM-DD)")
+  .option("--start-date <date>", "Start date (YYYY-MM-DD or YYYYMMDD)", parseDate)
+  .option("--due-date <date>", "Due date (YYYY-MM-DD or YYYYMMDD)", parseDate)
   .option("--priority <level>", "Priority: low, medium, high")
   .option("--estimate-minutes <n>", "Time estimate in minutes", parseCount)
   .option("--no-notify", "Suppress assignee notifications")
@@ -154,8 +154,8 @@ taskCmd
   .option("--name <name>", "New task name")
   .option("--description <desc>", "New description")
   .option("--assignees <ids>", "Comma-separated user IDs")
-  .option("--start-date <date>", "Start date (YYYY-MM-DD)")
-  .option("--due-date <date>", "Due date (YYYY-MM-DD)")
+  .option("--start-date <date>", "Start date (YYYY-MM-DD or YYYYMMDD)", parseDate)
+  .option("--due-date <date>", "Due date (YYYY-MM-DD or YYYYMMDD)", parseDate)
   .option("--priority <level>", "Priority: low, medium, high")
   .option("--estimate-minutes <n>", "Time estimate in minutes", parseCount)
   .action(async (opts) => {
@@ -178,8 +178,8 @@ taskCmd
   .description("Bulk update tasks (destructive)")
   .option("--task-ids <ids>", "Comma-separated task IDs")
   .option("--tasklist-id <id>", "Update all tasks in this tasklist", parseId)
-  .option("--due-date <date>", "Due date (YYYY-MM-DD)")
-  .option("--start-date <date>", "Start date (YYYY-MM-DD)")
+  .option("--due-date <date>", "Due date (YYYY-MM-DD or YYYYMMDD)", parseDate)
+  .option("--start-date <date>", "Start date (YYYY-MM-DD or YYYYMMDD)", parseDate)
   .option("--estimate-minutes <n>", "Time estimate in minutes", parseCount)
   .option("--priority <level>", "Priority: low, medium, high")
   .option("--progress <n>", "Progress percentage (0-100)", parsePercent)
@@ -271,8 +271,8 @@ projCmd
   .requiredOption("--name <name>", "Project name")
   .option("--description <desc>", "Project description")
   .option("--company-id <id>", "Company ID", parseId)
-  .option("--start-date <date>", "Start date (YYYY-MM-DD)")
-  .option("--end-date <date>", "End date (YYYY-MM-DD)")
+  .option("--start-date <date>", "Start date (YYYY-MM-DD or YYYYMMDD)", parseDate)
+  .option("--end-date <date>", "End date (YYYY-MM-DD or YYYYMMDD)", parseDate)
   .option("--dry-run", "Show what would be created")
   .action(async (opts) => {
     const { projectCreate } = await import("./cli/commands/project.js");
@@ -374,8 +374,8 @@ projCmd
   .option("--name <name>", "New project name")
   .option("--description <desc>", "New description")
   .option("--category-id <id>", "Category ID", parseId)
-  .option("--start-date <date>", "Start date (YYYYMMDD)")
-  .option("--end-date <date>", "End date (YYYYMMDD)")
+  .option("--start-date <date>", "Start date (YYYY-MM-DD or YYYYMMDD)", parseDate)
+  .option("--end-date <date>", "End date (YYYY-MM-DD or YYYYMMDD)", parseDate)
   .option("--dry-run", "Show what would be done")
   .action(async (opts) => {
     const { projectUpdate } = await import("./cli/commands/project.js");
@@ -418,8 +418,8 @@ program
   .command("list")
   .description("List time entries")
   .option("--project <input>", "Only this project (ID or URL)")
-  .option("--from <date>", "From date (YYYYMMDD)")
-  .option("--to <date>", "To date (YYYYMMDD)")
+  .option("--from <date>", "From date (YYYY-MM-DD or YYYYMMDD)", parseDate)
+  .option("--to <date>", "To date (YYYY-MM-DD or YYYYMMDD)", parseDate)
   .action(async (opts) => {
     const { timeList } = await import("./cli/commands/directory.js");
     await timeList({ ...program.opts(), ...opts });
