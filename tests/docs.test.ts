@@ -20,7 +20,9 @@ describe("docs", () => {
     const read = new Set(
       filesUnder(path.join(ROOT, "src"))
         .filter((f) => f.endsWith(".ts"))
-        .flatMap((f) => [...readFileSync(f, "utf-8").matchAll(/process\.env\.([A-Z][A-Z0-9_]*)/g)])
+        .flatMap((f) => [
+          ...readFileSync(f, "utf-8").matchAll(/(?:process\.env\.|\benv\(")([A-Z][A-Z0-9_]*)/g),
+        ])
         .map((m) => m[1]!)
     );
 
