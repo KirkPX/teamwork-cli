@@ -1,4 +1,4 @@
-import { ApiError, NetworkError, TimeoutError, UsageError, WriteNotSavedError, redact } from "./errors.js";
+import { ApiError, NetworkError, TimeoutError, UsageError, WriteNotSavedError } from "./errors.js";
 
 export type TeamworkClientOptions = {
   siteName: string;
@@ -129,7 +129,7 @@ export class TeamworkClient {
         status: response.status,
         statusText: response.statusText,
         operation,
-        safeDetail: extractSafeDetail(data),
+        safeDetail: extractSafeDetail(data, this.apiKey),
       });
     }
   }
@@ -184,7 +184,7 @@ export class TeamworkClient {
         status: response.status,
         statusText: response.statusText,
         operation,
-        safeDetail: extractSafeDetail(data),
+        safeDetail: extractSafeDetail(data, this.apiKey),
       });
     }
   }
@@ -823,12 +823,39 @@ function extractArray(data: unknown): unknown[] | null {
   return null;
 }
 
-function extractSafeDetail(data: unknown): string {
+/**
+ * Teamwork's own explanation of a refusal. The v1 API sends `MESSAGE`, v3 sends
+ * `errors[]` with a title and detail, and Desk sends `message` or `error`.
+ * The text is shown as Teamwork wrote it, cut to a readable length, with the
+ * key removed in case a reply ever repeats it.
+ */
+export function extractSafeDetail(data: unknown, apiKey?: string): string {
+  if (typeof data === "string" && data.trim() && !data.trimStart().startsWith("<")) {
+    return tidy(data, apiKey);
+  }
   if (!data || typeof data !== "object") return "no response detail";
   const obj = data as Record<string, unknown>;
-  const msg = obj.message || obj.error || obj.msg;
-  if (typeof msg === "string") return redact(msg, 20);
-  return "no response detail";
+  const parts: string[] = [];
+  for (const key of ["message", "MESSAGE", "error", "msg"]) {
+    if (typeof obj[key] === "string" && obj[key]) parts.push(obj[key] as string);
+  }
+  if (Array.isArray(obj.errors)) {
+    for (const item of obj.errors.slice(0, 3)) {
+      if (typeof item === "string") parts.push(item);
+      else if (item && typeof item === "object") {
+        const e = item as Record<string, unknown>;
+        const text = [e.title, e.detail ?? e.message].filter((x) => typeof x === "string" && x).join(": ");
+        if (text) parts.push(text);
+      }
+    }
+  }
+  return parts.length ? tidy(parts.join("; "), apiKey) : "no response detail";
+}
+
+function tidy(text: string, apiKey?: string): string {
+  let out = text.replace(/\s+/g, " ").trim();
+  if (apiKey) out = out.split(apiKey).join("****");
+  return out.length > 300 ? `${out.slice(0, 297)}...` : out;
 }
 
 /** The v1 project API reads and returns dates as YYYYMMDD. */

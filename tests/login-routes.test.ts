@@ -93,7 +93,7 @@ describe("a refused key gets a plain message", () => {
   it("tells a person whose saved key stopped working to sign in again", () => {
     const refused = new ApiError({ status: 401, statusText: "Unauthorized", operation: "GET /projects.json", safeDetail: "" });
     expect(refused.hint).toContain("teamwork login --force");
-    const other = new ApiError({ status: 404, statusText: "Not Found", operation: "GET /x.json", safeDetail: "" });
+    const other = new ApiError({ status: 409, statusText: "Conflict", operation: "GET /x.json", safeDetail: "" });
     expect(other.hint).toBeUndefined();
   });
 });
