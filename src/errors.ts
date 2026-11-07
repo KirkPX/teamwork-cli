@@ -32,6 +32,18 @@ function apiErrorHint(status: number): string | undefined {
   if (status === 403) {
     return "Your Teamwork account may not have permission for this. Ask a site administrator, or try `teamwork auth` to see which account is in use.";
   }
+  if (status === 404) {
+    return "Check the ID. For `teamwork api`, the path is the part after your site's address.";
+  }
+  if (status === 400 || status === 422) {
+    return "Teamwork could not accept the values sent. The reason above says which.";
+  }
+  if (status === 429) {
+    return "Teamwork is limiting requests. Wait a minute, then try again.";
+  }
+  if (status >= 500) {
+    return "Teamwork had a problem answering. Try again in a few minutes.";
+  }
   return undefined;
 }
 

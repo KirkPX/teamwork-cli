@@ -32,6 +32,13 @@ export async function apiCommand(path: string, opts: ApiOpts): Promise<void> {
   if (!path.startsWith("/")) path = `/${path}`;
 
   const body = await readJsonBody(opts);
+  // Node refuses to send a GET with a body, which would read as a network failure.
+  if (body !== undefined && method === "GET") {
+    throw new UsageError(
+      "A request body needs a write method.",
+      "Add --method POST, PUT or PATCH."
+    );
+  }
 
   const params: Record<string, string> = {};
   for (const pair of opts.param ?? []) {
