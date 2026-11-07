@@ -266,10 +266,12 @@ teamwork projects expenses --project 12345
 
 ## People, companies and time
 
+Dates take YYYY-MM-DD or YYYYMMDD, on every command.
+
 ```bash
 teamwork people list --search ada
 teamwork companies list
-teamwork time list --project 12345 --from 20260101 --to 20260131
+teamwork time list --project 12345 --from 2026-01-01 --to 2026-01-31
 ```
 
 ## Any other endpoint

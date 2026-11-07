@@ -32,3 +32,18 @@ function parseWhole(value: string): number {
   }
   return Number(text);
 }
+
+/**
+ * A calendar date, typed as YYYY-MM-DD or YYYYMMDD. Returns YYYY-MM-DD; the
+ * client turns it into the form each Teamwork endpoint takes. A date Teamwork
+ * cannot read is ignored without an error, so an impossible date is refused here.
+ */
+export function parseDate(value: string): string {
+  const match = /^(\d{4})-?(\d{2})-?(\d{2})$/.exec(value.trim());
+  const [, y, m, d] = match ?? [];
+  const date = match ? new Date(Date.UTC(Number(y), Number(m) - 1, Number(d))) : null;
+  if (!date || date.getUTCMonth() !== Number(m) - 1 || date.getUTCDate() !== Number(d)) {
+    throw new InvalidArgumentError(`Expected a date as YYYY-MM-DD or YYYYMMDD, not "${value}".`);
+  }
+  return `${y}-${m}-${d}`;
+}
