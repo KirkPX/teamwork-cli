@@ -146,6 +146,15 @@ export async function taskBulkDelete(opts: Opts): Promise<void> {
   if (!opts.taskIds && !opts.tasklistId) {
     throw new UsageError("Either --task-ids or --tasklist-id is required.");
   }
+  if (opts.taskIds && opts.tasklistId) {
+    throw new UsageError("Pass --task-ids or --tasklist-id, not both.");
+  }
+  if (opts.deleteList && !opts.tasklistId) {
+    throw new UsageError(
+      "--delete-list deletes a whole tasklist, so it needs --tasklist-id.",
+      "Pass --tasklist-id <id> --delete-list to delete the tasklist and every task in it."
+    );
+  }
 
   let taskIds: number[];
   if (opts.taskIds) {
@@ -158,12 +167,17 @@ export async function taskBulkDelete(opts: Opts): Promise<void> {
   }
 
   const alsoDeletesTasklist = Boolean(opts.deleteList && opts.tasklistId);
+  const what = alsoDeletesTasklist
+    ? `tasklist ${opts.tasklistId} and all ${taskIds.length} tasks in it`
+    : opts.tasklistId
+      ? `all ${taskIds.length} tasks in tasklist ${opts.tasklistId}`
+      : `${taskIds.length} tasks`;
 
   if (opts.dryRun) {
     for (const id of taskIds) r.note(`  Task ${id}`);
     if (alsoDeletesTasklist) r.note(`  Would also delete tasklist ${opts.tasklistId}`);
     printDryRun(
-      dryRunSummary(true, `Would delete ${taskIds.length} tasks`),
+      dryRunSummary(true, `Would delete ${what}`),
       true,
       r,
       {
@@ -176,7 +190,7 @@ export async function taskBulkDelete(opts: Opts): Promise<void> {
   }
 
   const confirm = await confirmDestructive(
-    `Delete ${taskIds.length} tasks?`,
+    `Delete ${what}?`,
     { yes: opts.yes, json: opts.json }
   );
   if (!confirm.confirmed) {
@@ -200,7 +214,12 @@ export async function taskBulkDelete(opts: Opts): Promise<void> {
   }
 
   let tasklistDeleted: boolean | undefined;
-  if (alsoDeletesTasklist) {
+  const anyFailed = results.some((x) => x.status === "failed");
+  if (alsoDeletesTasklist && anyFailed) {
+    // Keep the tasklist, so the tasks that could not be deleted are not lost with it.
+    tasklistDeleted = false;
+    r.warn(pc.yellow(`Kept tasklist ${opts.tasklistId}, because some tasks could not be deleted.`));
+  } else if (alsoDeletesTasklist) {
     try {
       await client.deleteTaskList(opts.tasklistId!);
       tasklistDeleted = true;
