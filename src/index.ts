@@ -84,7 +84,7 @@ program
   .description("Manage Teamwork credentials")
   .option("--status", "Show current auth status")
   .option("--site <name>", "Teamwork site name")
-  .option("--api-key <key>", "API key to store")
+  .option("--api-key <key>", "API key to store, or - to read it from standard input")
   .option("--login", "Store credentials")
   .option("--logout", "Clear credentials")
   .action(async (opts) => {

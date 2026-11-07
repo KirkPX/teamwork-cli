@@ -161,7 +161,8 @@ Where the site and key come from, first match wins:
 1. Environment variables (`TEAMWORK_SITE_NAME`, `TEAMWORK_API_KEY`)
 2. The settings file (site name), and the OS keychain or private credentials file (key)
 
-No command takes the site or key as a flag, and there is no default: both are required.
+No other command takes the site or key as a flag, and there is no default: both are
+required. `teamwork auth --api-key` stores a key; see [Auth](#auth).
 
 ## Configure
 
@@ -399,9 +400,20 @@ teamwork auth
 teamwork logout
 ```
 
-`teamwork auth --site <name> --api-key <key>` still works for scripted setup, but it
+`teamwork auth --site <name> --api-key -` stores a key for scripted setup. The `-`
+reads the key from standard input, so it stays out of your shell history:
+
+```bash
+teamwork auth --site yoursite --api-key - < key.txt
+```
+
+```powershell
+Get-Content key.txt | teamwork auth --site yoursite --api-key -
+```
+
+A key typed after `--api-key` still works, but it lands in your shell history. `auth`
 stores the key without contacting Teamwork, so a bad key is reported as stored.
-`teamwork login` verifies before saving. Prefer it.
+`teamwork login` checks the key before saving it. Prefer it.
 
 Windows PowerShell uses the same commands — they are ordinary flags, not shell syntax.
 
