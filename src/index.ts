@@ -195,7 +195,7 @@ taskCmd
   .description("Bulk delete tasks (destructive)")
   .option("--task-ids <ids>", "Comma-separated task IDs")
   .option("--tasklist-id <id>", "Delete all tasks in this tasklist", parseId)
-  .option("--delete-list", "Also delete the tasklist")
+  .option("--delete-list", "Also delete the tasklist given by --tasklist-id")
   .option("--dry-run", "Show what would be deleted")
   .option("--yes", "Skip confirmation")
   .action(async (opts) => {
