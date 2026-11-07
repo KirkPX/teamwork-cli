@@ -40,7 +40,11 @@ export async function projectCreate(
   const client = createClient();
 
   if (opts.dryRun) {
-    printDryRun(dryRunSummary(true, `Would create project "${opts.name}"`), true, r);
+    const planned = Object.fromEntries(
+      Object.entries({ name: opts.name, description: opts.description, startDate: opts.startDate, endDate: opts.endDate })
+        .filter(([, v]) => v !== undefined)
+    );
+    printDryRun(dryRunSummary(true, `Would create project "${opts.name}"`), true, r, { project: planned });
     return;
   }
 
@@ -99,16 +103,15 @@ export async function projectUpdateFeatures(
     r.note(`  Will ${enabled ? "enable" : "disable"}: ${feat}`);
   }
 
+  const change = describeFeatures(features);
   if (opts.dryRun) {
-    printDryRun(dryRunSummary(true, "No changes made"), true, r);
+    printDryRun(dryRunSummary(true, `Would ${change} on project ${id}`), true, r, { projectId: id, features });
     return;
   }
 
   await client.updateProject(id, { features });
-  r.result(
-    { ok: true, dryRun: false, changed: true, projectId: id, summary: "Done!" },
-    pc.green("Done!")
-  );
+  const summary = `${capitalise(change)} on project ${id}`;
+  r.result({ ok: true, dryRun: false, changed: true, projectId: id, features, summary }, pc.green(summary));
 }
 
 export async function projectSetCategory(
@@ -125,14 +128,20 @@ export async function projectSetCategory(
   r.note(`  Will set category to: ${opts.categoryId}`);
 
   if (opts.dryRun) {
-    printDryRun(dryRunSummary(true, "No changes made"), true, r);
+    printDryRun(
+      dryRunSummary(true, `Would move project ${id} to category ${opts.categoryId}`),
+      true,
+      r,
+      { projectId: id, categoryId: opts.categoryId }
+    );
     return;
   }
 
   await client.updateProject(id, { categoryId: opts.categoryId });
+  const summary = `Moved project ${id} to category ${opts.categoryId}`;
   r.result(
-    { ok: true, dryRun: false, changed: true, projectId: id, summary: "Done!" },
-    pc.green("Done!")
+    { ok: true, dryRun: false, changed: true, projectId: id, categoryId: opts.categoryId, summary },
+    pc.green(summary)
   );
 }
 
@@ -416,14 +425,30 @@ export async function projectUpdate(
   r.note(`Project ${id}: ${proj.name ?? "(unknown)"}`);
   for (const [key, val] of fields) r.note(`  Will set ${key}: ${val}`);
 
+  const planned = Object.fromEntries(fields);
+  const names = fields.map(([key]) => key).join(", ");
   if (opts.dryRun) {
-    printDryRun(dryRunSummary(true, "No changes made"), true, r, { projectId: id });
+    printDryRun(dryRunSummary(true, `Would update project ${id}: ${names}`), true, r, {
+      projectId: id,
+      updates: planned,
+    });
     return;
   }
 
   await client.updateProject(id, updates);
-  r.result(
-    { ok: true, dryRun: false, changed: true, projectId: id, summary: "Done!" },
-    pc.green("Done!")
-  );
+  const summary = `Updated project ${id}: ${names}`;
+  r.result({ ok: true, dryRun: false, changed: true, projectId: id, updates: planned, summary }, pc.green(summary));
+}
+
+function describeFeatures(features: Record<string, boolean>): string {
+  const on = Object.keys(features).filter((f) => features[f]);
+  const off = Object.keys(features).filter((f) => !features[f]);
+  return [on.length ? `enable ${on.join(", ")}` : "", off.length ? `disable ${off.join(", ")}` : ""]
+    .filter(Boolean)
+    .join(" and ");
+}
+
+function capitalise(text: string): string {
+  const past = text.replace(/\benable\b/g, "enabled").replace(/\bdisable\b/g, "disabled");
+  return past.charAt(0).toUpperCase() + past.slice(1);
 }
