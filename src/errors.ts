@@ -159,3 +159,16 @@ function redactUrlCredentials(msg: string): string {
     "****@"
   );
 }
+
+/** Why a file could not be read or written, in plain words instead of a system code. */
+export function fileErrorReason(err: unknown): string {
+  const code = (err as NodeJS.ErrnoException)?.code;
+  if (code === "ENOENT") return "the file or its folder does not exist";
+  if (code === "EISDIR") return "it is a folder, not a file";
+  // Windows reports a file in the way of a folder as EEXIST when making the folder.
+  if (code === "ENOTDIR" || code === "EEXIST") return "part of the path is a file, not a folder";
+  if (code === "EACCES" || code === "EPERM") return "you do not have permission";
+  if (code === "EROFS") return "the disk is read-only";
+  if (code === "ENOSPC") return "the disk is full";
+  return code ?? (err instanceof Error ? err.message : "unknown error");
+}

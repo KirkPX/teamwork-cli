@@ -14,6 +14,18 @@ for (const stream of [process.stdout, process.stderr]) {
 
 const program = new Command();
 
+// Commander's own errors (a missing option, an unknown command) follow the output
+// contract too: one JSON object on stderr when the output is JSON. This is set
+// before any subcommand is added, because each subcommand copies it when created.
+program.configureOutput({
+  outputError: (text, write) => {
+    const json = process.argv.includes("--json") || !process.stdout.isTTY;
+    if (!json) return write(text);
+    const message = text.replace(/^error: /, "").trim();
+    write(JSON.stringify({ error: true, message, hint: "Run the command with --help to see its options." }) + "\n");
+  },
+});
+
 // --json is declared once, here on the root. Commander still accepts it after a
 // subcommand (`teamwork tasks list --json`), and each action merges
 // `program.opts()` so the value reaches the handler. Declaring it again on a
