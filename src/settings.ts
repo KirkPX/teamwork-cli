@@ -131,9 +131,13 @@ function leafType(parts: string[]): Leaf | null {
 const SETTING_NAMES =
   "siteName, readOnly, timeoutMs, projectPresets.<preset>.description, .namePrefix, .categoryId or .features.<feature>";
 
+// A preset or feature name is whatever was typed, and these names would reach
+// JavaScript's own objects instead of the settings file.
+const UNSAFE_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
 function settingPath(name: string): { parts: string[]; type: Leaf } {
   const parts = name.split(".");
-  const type = parts.every(Boolean) ? leafType(parts) : null;
+  const type = parts.every((p) => p && !UNSAFE_KEYS.has(p)) ? leafType(parts) : null;
   if (!type) {
     throw new UsageError(`There is no setting called "${name}".`, `Settings: ${SETTING_NAMES}.`);
   }
@@ -178,7 +182,11 @@ export function setSetting(name: string, raw: string): Settings {
  */
 export function unsetSetting(name: string): boolean {
   const parts = name.split(".");
-  const isPreset = parts.length === 2 && parts[0] === "projectPresets" && Boolean(parts[1]);
+  const isPreset =
+    parts.length === 2 &&
+    parts[0] === "projectPresets" &&
+    Boolean(parts[1]) &&
+    !UNSAFE_KEYS.has(parts[1]!);
   if (!isPreset) settingPath(name);
   const settings = structuredClone(loadSettings()) as Record<string, unknown>;
   const chain: Record<string, unknown>[] = [settings];
