@@ -1,8 +1,9 @@
 import { ConfigError, UsageError } from "../../errors.js";
 import pc from "picocolors";
-import { getCredentialStore, storeLabel } from "../../auth.js";
+import { getCredentialStore, getCredentialStoreInfo, storeLabel } from "../../auth.js";
 import {
   getSiteName,
+  resolveConfig,
   setSiteName,
   clearSiteName,
 } from "../../config.js";
@@ -40,21 +41,22 @@ type AuthStatusOpts = {
 export async function authStatusCommand(
   opts: AuthStatusOpts
 ): Promise<void> {
-  const siteName = getSiteName();
   const r = reporter(opts);
+  // The same order every command uses: environment first, then the saved key.
+  const { siteName, apiKey } = resolveConfig();
+  const fromEnv = Boolean(process.env.TEAMWORK_API_KEY);
+  const store = getCredentialStoreInfo();
 
   if (!siteName) {
     r.result(
-      { configured: false },
+      { configured: false, credentialStore: store.kind, persistent: store.persistent },
       pc.yellow("Not signed in.") + "\nRun `teamwork login`."
     );
     return;
   }
 
-  const store = getCredentialStore();
-  const apiKey = store.getApiKey(siteName);
-
   const preview = apiKey ? `${apiKey.slice(0, 4)}****${apiKey.slice(-4)}` : null;
+  const source = !apiKey ? null : fromEnv ? "environment" : "saved";
 
   r.result(
     {
@@ -62,15 +64,23 @@ export async function authStatusCommand(
       siteName,
       apiKeySet: apiKey !== null,
       apiKeyPreview: preview,
+      apiKeySource: source,
+      credentialStore: store.kind,
+      persistent: store.persistent,
     },
     [
       `${pc.green("OK")} Site: ${siteName}`,
       ...(preview
-        ? [`${pc.green("OK")} API key: ${preview}`]
+        ? [
+            `${pc.green("OK")} API key: ${preview} (${
+              source === "environment" ? "from TEAMWORK_API_KEY" : "saved"
+            })`,
+          ]
         : [
-            pc.yellow("  API key: not stored in keyring"),
+            pc.yellow("  API key: none saved for this site"),
             "  Run `teamwork login`, or set TEAMWORK_API_KEY for automation.",
           ]),
+      `   Saved keys go to your ${storeLabel(store.kind)}${store.persistent ? "" : ", which is lost when the command ends"}.`,
     ].join("\n")
   );
 }
