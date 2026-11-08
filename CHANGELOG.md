@@ -1,13 +1,24 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
-- **`config set` and `config unset` refuse `__proto__`, `constructor` and `prototype`
-  as a preset or feature name.** Before, `config set` reported "Set" for them and
-  changed nothing in the file.
+You need **Node.js 22.18, 24.11 or newer**. On an older Node, `npm run setup` stops with
+npm's own message before it builds anything, and `teamwork doctor` marks Node.js as failed.
+
 - **`teamwork whoami` asks Teamwork who the saved key belongs to.** `teamwork auth` only
   shows what is saved on this machine, so it cannot tell when Teamwork has stopped
   accepting the key.
+- **`teamwork auth` sees a key set in `TEAMWORK_API_KEY`**, says where the key came from,
+  and names the store that saved keys go to.
+- **A site name with a space or a slash is refused when it is saved**, with the reason.
+  Before, every later command failed with a bare `Invalid URL`.
+- **Scripts get only the JSON error report on stderr.** The welcome line, the token steps
+  and retry messages now show only at a terminal.
+- **Error messages keep their text when an `@` appears after an address.** Before, the
+  part that hides passwords in addresses also hid the text up to that `@`.
+- **`config set` and `config unset` refuse `__proto__`, `constructor` and `prototype`
+  as a preset or feature name.** Before, `config set` reported "Set" for them and
+  changed nothing in the file.
 
 ## 0.3.0
 
