@@ -16,7 +16,7 @@ export async function tasklistList(
   opts: Opts & { projectId: number }
 ): Promise<void> {
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   const tasklists = await client.getTaskLists(opts.projectId);
   r.result(tasklists);
@@ -33,7 +33,7 @@ export async function tasklistCreate(
 ): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   if (opts.dryRun) {
     printDryRun(
@@ -77,7 +77,7 @@ export async function tasklistUpdate(
 ): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   if (!opts.name && !opts.description) {
     throw new UsageError("At least one of --name or --description is required.");
@@ -113,7 +113,7 @@ export async function tasklistDelete(
 ): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   const confirm = await confirmDestructive(
     `Delete tasklist ${opts.tasklistId} and all tasks in it?`,

@@ -10,7 +10,7 @@ export async function notebookList(opts: {
   projectId: number;
 }): Promise<void> {
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   const notebooks = await client.getNotebooks(opts.projectId);
   r.result(
@@ -29,7 +29,7 @@ export async function notebookCreate(opts: {
 }): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   let content = opts.content;
   if (opts.file) content = await readOptionFile("--file", opts.file);
@@ -57,7 +57,7 @@ export async function notebookUpdate(opts: {
 }): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   let content = opts.content;
   if (opts.file) content = await readOptionFile("--file", opts.file);
@@ -93,7 +93,7 @@ export async function notebookDelete(opts: {
 }): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   const confirm = await confirmDestructive(
     `Delete notebook ${opts.notebookId}?`,

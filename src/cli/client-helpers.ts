@@ -2,21 +2,28 @@ import { TeamworkClient } from "../client.js";
 import { ConfigError } from "../errors.js";
 import { resolveConfig } from "../config.js";
 import { requireApiKey, requireSiteName } from "./guardrails.js";
+import { reporter, type Reporter } from "./output.js";
 
-export function createClient(): TeamworkClient {
+/**
+ * The client a command uses: settings resolved, sign-in required, retries shown.
+ * A retry message goes to stderr at a terminal, and stays out of a piped or
+ * --json run, where stderr holds only the error report a script reads.
+ */
+export function createClient(opts: { json?: boolean } = {}): TeamworkClient {
   const { siteName, apiKey, timeoutMs } = resolveConfig();
   requireSiteName(siteName);
   requireApiKey(apiKey);
+  const r = reporter(opts);
   return new TeamworkClient({
     siteName,
     baseUrl: testBaseUrl(process.env.TEAMWORK_BASE_URL),
     apiKey,
     timeoutMs,
-    onRetry: reportRetry,
+    onRetry: (info) => reportRetry(r, info),
   });
 }
 
-function reportRetry(info: {
+function reportRetry(r: Reporter, info: {
   attempt: number;
   maxRetries: number;
   delayMs: number;
@@ -24,7 +31,7 @@ function reportRetry(info: {
   operation: string;
 }): void {
   const seconds = Math.ceil(info.delayMs / 1000);
-  console.error(
+  r.note(
     `Teamwork returned ${info.status} for ${info.operation}; retrying in ${seconds}s (${info.attempt + 1}/${info.maxRetries}).`
   );
 }

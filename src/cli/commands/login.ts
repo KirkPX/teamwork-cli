@@ -4,7 +4,7 @@ import { getSiteName, setSiteName, clearSiteName } from "../../config.js";
 import { LoginError, SIGN_IN_NOTE, TOKEN_STEPS, verifyApiKey, type VerifiedAccount } from "../../login/discover.js";
 import { runBrowserLogin } from "../../login/server.js";
 import { promptSecret, promptLine } from "../../login/prompt.js";
-import { reporter } from "../output.js";
+import { reporter, type Reporter } from "../output.js";
 
 export type LoginOptions = {
   paste?: boolean;
@@ -26,8 +26,8 @@ export async function loginCommand(opts: LoginOptions = {}): Promise<void> {
   }
 
   const account = opts.paste || !canUseBrowser()
-    ? await pasteLogin()
-    : await browserLogin();
+    ? await pasteLogin(r)
+    : await browserLogin(r);
 
   const store = getCredentialStore();
 
@@ -86,8 +86,8 @@ function currentAccount(): { siteName: string } | null {
   return stored ? { siteName } : null;
 }
 
-async function browserLogin(): Promise<VerifiedAccount> {
-  console.error("Opening a page to collect your Teamwork API token...");
+async function browserLogin(r: Reporter): Promise<VerifiedAccount> {
+  r.note("Opening a page to collect your Teamwork API token...");
   return await runBrowserLogin({
     siteName: getSiteName(),
     accept: async (apiKey, siteHint) => {
@@ -98,10 +98,10 @@ async function browserLogin(): Promise<VerifiedAccount> {
   });
 }
 
-async function pasteLogin(): Promise<VerifiedAccount> {
-  console.error(TOKEN_STEPS);
-  console.error(SIGN_IN_NOTE);
-  console.error("");
+async function pasteLogin(r: Reporter): Promise<VerifiedAccount> {
+  // The steps are for a person. A script or --json run keeps stderr for the
+  // error report alone.
+  r.note(`${TOKEN_STEPS}\n${SIGN_IN_NOTE}\n`);
 
   const apiKey = await promptSecret("Paste your Teamwork API token: ");
   if (!apiKey) {

@@ -8,7 +8,7 @@ import { createClient } from "../client-helpers.js";
 import { reporter } from "../output.js";
 
 export async function whoamiCommand(opts: { json?: boolean } = {}): Promise<void> {
-  const client = createClient();
+  const client = createClient(opts);
   const person = extractPerson(await client.me());
   const { siteName } = resolveConfig();
 
