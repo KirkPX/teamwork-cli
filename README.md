@@ -18,7 +18,7 @@ This is an independent project. It is not affiliated with or endorsed by Teamwor
 
 ## Install
 
-You need **Node.js 20 or newer** and Git.
+You need **Node.js 22.18, 24.11 or newer** and Git.
 
 ```bash
 cd ~
