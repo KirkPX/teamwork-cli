@@ -1,5 +1,5 @@
 import pc from "picocolors";
-import { credentialsFilePath, getCredentialStore } from "../../auth.js";
+import { credentialsFilePath, getCredentialStore, storeLabel, type StoreKind } from "../../auth.js";
 import { getSiteName, setSiteName, clearSiteName } from "../../config.js";
 import { LoginError, SIGN_IN_NOTE, TOKEN_STEPS, verifyApiKey, type VerifiedAccount } from "../../login/discover.js";
 import { runBrowserLogin } from "../../login/server.js";
@@ -126,7 +126,7 @@ async function pasteLogin(): Promise<VerifiedAccount> {
 
 // Where the last key went. The chained store picks the keychain or the file
 // at write time, so the store's own kind cannot answer this.
-let savedTo: string | undefined;
+let savedTo: StoreKind | undefined;
 
 function persist(siteName: string, apiKey: string): void {
   setSiteName(siteName);
@@ -140,10 +140,3 @@ function canUseBrowser(): boolean {
   return process.stdout.isTTY === true;
 }
 
-export function storeLabel(kind: string): string {
-  if (kind === "file") return `private credentials file (${credentialsFilePath()})`;
-  if (kind !== "keyring") return "session (not persisted)";
-  if (process.platform === "darwin") return "macOS Keychain";
-  if (process.platform === "win32") return "Windows Credential Manager";
-  return "OS keyring";
-}
