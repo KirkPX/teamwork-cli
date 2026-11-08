@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **`teamwork whoami` asks Teamwork who the saved key belongs to.** `teamwork auth` only
+  shows what is saved on this machine, so it cannot tell when Teamwork has stopped
+  accepting the key.
+
 ## 0.3.0
 
 - **`time list --from/--to` filters again.** It sent filter names Teamwork ignores, so it

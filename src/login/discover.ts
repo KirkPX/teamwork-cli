@@ -163,7 +163,7 @@ export function normalizeSiteName(input?: string | null): string | null {
   return /^[a-z0-9-]+$/i.test(bare) ? bare.toLowerCase() : null;
 }
 
-function extractPerson(me: Record<string, unknown>): Record<string, unknown> {
+export function extractPerson(me: Record<string, unknown>): Record<string, unknown> {
   const person = me.person ?? me.people ?? me.user ?? me;
   if (Array.isArray(person)) {
     return (person[0] as Record<string, unknown>) ?? {};
@@ -173,7 +173,7 @@ function extractPerson(me: Record<string, unknown>): Record<string, unknown> {
     : {};
 }
 
-function buildName(person: Record<string, unknown>): string | null {
+export function buildName(person: Record<string, unknown>): string | null {
   const full = stringField(person, "fullName") ?? stringField(person, "name");
   if (full) return full;
 
@@ -185,7 +185,7 @@ function buildName(person: Record<string, unknown>): string | null {
   return joined || null;
 }
 
-function stringField(
+export function stringField(
   source: Record<string, unknown>,
   key: string
 ): string | null {
