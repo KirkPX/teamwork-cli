@@ -35,7 +35,7 @@ export async function taskList(
   opts: Opts & { project: string; tasklistId?: number }
 ): Promise<void> {
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   const id = resolveProjectInput(opts.project);
   if (!id) throw new UsageError(`Invalid project identifier: ${opts.project}`);
@@ -56,7 +56,7 @@ export async function taskList(
 export async function taskBulkUpdate(opts: Opts): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   if (!opts.taskIds && !opts.tasklistId) {
     throw new UsageError("Either --task-ids or --tasklist-id is required.");
@@ -141,7 +141,7 @@ export async function taskBulkUpdate(opts: Opts): Promise<void> {
 export async function taskBulkDelete(opts: Opts): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   if (!opts.taskIds && !opts.tasklistId) {
     throw new UsageError("Either --task-ids or --tasklist-id is required.");
@@ -256,7 +256,7 @@ export async function taskCreate(opts: {
 }): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   const assigneeUserIds = opts.assignees
     ? resolveIdList(opts.assignees, "assignee ID")
@@ -301,7 +301,7 @@ export async function taskUpdate(opts: {
 }): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   const assigneeUserIds = opts.assignees
     ? resolveIdList(opts.assignees, "assignee ID")
@@ -327,7 +327,7 @@ export async function taskDelete(opts: {
 }): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   const confirm = await confirmDestructive(
     `Delete task ${opts.taskId}?`,

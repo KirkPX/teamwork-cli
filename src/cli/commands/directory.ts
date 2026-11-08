@@ -9,7 +9,7 @@ type Opts = { json?: boolean };
 
 export async function peopleList(opts: Opts & { search?: string }): Promise<void> {
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
   let people = (await client.getPeople()) as Record<string, unknown>[];
   if (opts.search) {
     const q = opts.search.toLowerCase();
@@ -24,7 +24,7 @@ export async function peopleList(opts: Opts & { search?: string }): Promise<void
 
 export async function companiesList(opts: Opts): Promise<void> {
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
   r.result(await client.getCompanies());
 }
 
@@ -32,7 +32,7 @@ export async function timeList(
   opts: Opts & { project?: string; from?: string; to?: string }
 ): Promise<void> {
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
   let projectId: number | undefined;
   if (opts.project) {
     const id = resolveProjectInput(opts.project);
@@ -44,7 +44,7 @@ export async function timeList(
 
 export async function expensesList(opts: Opts & { project: string }): Promise<void> {
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
   const id = resolveProjectInput(opts.project);
   if (!id) throw new UsageError(`Invalid project identifier: ${opts.project}`);
   r.result(await client.getProjectExpenses(id));

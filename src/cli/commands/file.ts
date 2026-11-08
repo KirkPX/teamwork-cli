@@ -15,7 +15,7 @@ export async function fileList(opts: {
   taskId: number;
 }): Promise<void> {
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   const files = await client.getTaskFiles(opts.taskId);
   r.result(files, files.length ? undefined : `No files attached to task ${opts.taskId}`);
@@ -48,7 +48,7 @@ export async function fileMigrate(opts: {
   assertWritable(opts);
   const r = reporter(opts);
   const mappings = parseMappings(opts);
-  const client = createClient();
+  const client = createClient(opts);
   const planned: PlannedFile[] = [];
 
   for (const mapping of mappings) {

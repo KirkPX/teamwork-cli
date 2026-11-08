@@ -18,7 +18,7 @@ type Opts = { json?: boolean };
 
 export async function projectList(opts: Opts & { status?: string }): Promise<void> {
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
   const projects = await client.getProjects(
     (opts.status as "active" | "archived" | "all") ?? undefined
   );
@@ -37,7 +37,7 @@ export async function projectCreate(
 ): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   if (opts.dryRun) {
     const planned = Object.fromEntries(
@@ -65,7 +65,7 @@ export async function projectCreate(
 
 export async function projectGet(opts: Opts & { project: string }): Promise<void> {
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
   const id = resolveProjectInput(opts.project);
   if (!id) throw new UsageError(`Invalid project identifier: ${opts.project}`);
   const project = await client.getProject(id);
@@ -77,7 +77,7 @@ export async function projectUpdateFeatures(
 ): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
   const id = resolveProjectInput(opts.project);
   if (!id) throw new UsageError(`Invalid project identifier: ${opts.project}`);
 
@@ -119,7 +119,7 @@ export async function projectSetCategory(
 ): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
   const id = resolveProjectInput(opts.project);
   if (!id) throw new UsageError(`Invalid project identifier: ${opts.project}`);
 
@@ -150,7 +150,7 @@ export async function projectAddMember(
 ): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
   const id = resolveProjectInput(opts.project);
   if (!id) throw new UsageError(`Invalid project identifier: ${opts.project}`);
 
@@ -183,7 +183,7 @@ export async function projectListArchived(
   opts: Opts & { category?: number; search?: string }
 ): Promise<void> {
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
 
   let projects = (await client.getProjects("archived")) as Record<
     string,
@@ -244,7 +244,7 @@ export async function projectArchive(
     }
   }
 
-  const client = createClient();
+  const client = createClient(opts);
 
   r.note(`${action} project ${id}...`);
   await client.updateProject(id, { status });
@@ -260,7 +260,7 @@ export async function projectDeleteIncompleteTasks(
 ): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
   const id = resolveProjectInput(opts.project);
   if (!id) throw new UsageError(`Invalid project identifier: ${opts.project}`);
 
@@ -350,7 +350,7 @@ export async function projectApplyPreset(
     );
   }
 
-  const client = createClient();
+  const client = createClient(opts);
   const id = resolveProjectInput(opts.project);
   if (!id) throw new UsageError(`Invalid project identifier: ${opts.project}`);
 
@@ -403,7 +403,7 @@ export async function projectUpdate(
 ): Promise<void> {
   assertWritable(opts);
   const r = reporter(opts);
-  const client = createClient();
+  const client = createClient(opts);
   const id = resolveProjectInput(opts.project);
   if (!id) throw new UsageError(`Invalid project identifier: ${opts.project}`);
 

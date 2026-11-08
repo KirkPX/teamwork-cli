@@ -47,9 +47,9 @@ program.action(async () => {
     program.help();
     return;
   }
-  console.error("Welcome to the Teamwork CLI. Let's connect your account.");
-  console.error("");
-  await loginCommand();
+  const { reporter } = await import("./cli/output.js");
+  reporter(program.opts()).note("Welcome to the Teamwork CLI. Let's connect your account.\n");
+  await loginCommand(program.opts());
 });
 
 program

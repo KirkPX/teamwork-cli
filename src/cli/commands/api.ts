@@ -61,7 +61,7 @@ export async function apiCommand(path: string, opts: ApiOpts): Promise<void> {
     }
   }
 
-  const client = createClient();
+  const client = createClient(opts);
 
   if (opts.all) {
     r.result(await fetchAllPages(client, path, params));
