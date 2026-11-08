@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **`config set` and `config unset` refuse `__proto__`, `constructor` and `prototype`
+  as a preset or feature name.** Before, `config set` reported "Set" for them and
+  changed nothing in the file.
 - **`teamwork whoami` asks Teamwork who the saved key belongs to.** `teamwork auth` only
   shows what is saved on this machine, so it cannot tell when Teamwork has stopped
   accepting the key.

@@ -61,6 +61,21 @@ describe("config unset", () => {
   });
 });
 
+describe("names that reach JavaScript's own objects", () => {
+  const unsafe = ["__proto__", "constructor", "prototype"];
+
+  it("are refused as a preset or feature name, and nothing is written", () => {
+    for (const key of unsafe) {
+      expect(() => setSetting(`projectPresets.${key}.description`, "x")).toThrow(UsageError);
+      expect(() => setSetting(`projectPresets.a.features.${key}`, "true")).toThrow(UsageError);
+      expect(() => unsetSetting(`projectPresets.${key}`)).toThrow(UsageError);
+      expect(() => unsetSetting(`projectPresets.${key}.description`)).toThrow(UsageError);
+    }
+    expect(existsSync(file)).toBe(false);
+    expect(({} as Record<string, unknown>).description).toBeUndefined();
+  });
+});
+
 describe("config set through the built CLI", () => {
   it("writes the file and prints JSON in a pipe", async () => {
     const { execFile } = await import("node:child_process");
