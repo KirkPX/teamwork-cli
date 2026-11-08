@@ -1,35 +1,73 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync, statSync, existsSync } from "fs";
-import { tmpdir } from "os";
-import { join } from "path";
-import { getCredentialStore, resetCredentialStore } from "../src/auth.js";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import {
+  FileCredentialStore,
+  getCredentialStore,
+  KeyringWithFileFallback,
+  resetCredentialStore,
+  type KeyStore,
+} from "../src/auth.js";
+import { updateSettings } from "../src/settings.js";
 
-// The file store lets SSH sessions sign in, because macOS closes the keychain to
-// them. The keychain itself is not exercised here.
+const origEnv = { ...process.env };
+let root: string;
+let file: string;
+
+beforeEach(() => {
+  root = mkdtempSync(join(tmpdir(), "teamwork-cred-"));
+  file = join(root, "sub", "credentials.json");
+  process.env.TEAMWORK_CLI_CREDENTIAL_STORE = "file";
+  process.env.TEAMWORK_CLI_CREDENTIALS_FILE = file;
+  resetCredentialStore();
+});
+
+afterEach(() => {
+  // Restore, not delete: with no store named, the next test would open the real keychain.
+  process.env = { ...origEnv };
+  rmSync(root, { recursive: true, force: true });
+  resetCredentialStore();
+});
+
+// The file store lets SSH sessions sign in, because macOS closes the keychain to them.
 describe("file credential store", () => {
-  let file: string;
-
-  beforeEach(() => {
-    file = join(mkdtempSync(join(tmpdir(), "tw-cred-")), "sub", "credentials.json");
-    process.env.TEAMWORK_CLI_CREDENTIAL_STORE = "file";
-    process.env.TEAMWORK_CLI_CREDENTIALS_FILE = file;
-    resetCredentialStore();
-  });
-
-  afterEach(() => {
-    delete process.env.TEAMWORK_CLI_CREDENTIAL_STORE;
-    delete process.env.TEAMWORK_CLI_CREDENTIALS_FILE;
-    resetCredentialStore();
-  });
-
   it("saves, reads back and keeps the file private", () => {
     const store = getCredentialStore();
     expect(store.kind).toBe("file");
-    expect(store.getApiKey("site")).toBeNull();
-    expect(store.setApiKey("site", "k1")).toBe("file");
-    expect(store.getApiKey("site")).toBe("k1");
+    expect(store.getApiKey("acct")).toBeNull();
+    expect(store.setApiKey("acct", "k1")).toBe("file");
+    expect(store.getApiKey("acct")).toBe("k1");
     // Windows has no POSIX mode bits. There the profile folder's permissions apply.
-    if (process.platform !== "win32") expect(statSync(file).mode & 0o777).toBe(0o600);
+    if (process.platform !== "win32") {
+      expect(statSync(file).mode & 0o777).toBe(0o600);
+      expect(statSync(dirname(file)).mode & 0o777).toBe(0o700);
+    }
+  });
+
+  it("tightens this CLI's own folder when saving settings created it first", () => {
+    delete process.env.TEAMWORK_CLI_CREDENTIALS_FILE;
+    delete process.env.TEAMWORK_CLI_CONFIG_FILE;
+    process.env.XDG_CONFIG_HOME = root;
+    process.env.APPDATA = root;
+    updateSettings({ siteName: "work" });
+
+    getCredentialStore().setApiKey("work", "k1");
+
+    const folder = dirname(new FileCredentialStore().path);
+    expect(folder).toBe(join(root, "teamwork-cli"));
+    if (process.platform !== "win32") expect(statSync(folder).mode & 0o777).toBe(0o700);
+  });
+
+  it("does not change the mode of a folder someone else named", () => {
+    if (process.platform === "win32") return;
+    const shared = join(root, "shared");
+    mkdirSync(shared, { mode: 0o755 });
+    process.env.TEAMWORK_CLI_CREDENTIALS_FILE = join(shared, "credentials.json");
+
+    getCredentialStore().setApiKey("acct", "k1");
+
+    expect(statSync(shared).mode & 0o777).toBe(0o755);
   });
 
   it("keeps other sites when one changes, and removes the file when empty", () => {
@@ -43,10 +81,83 @@ describe("file credential store", () => {
     expect(existsSync(file)).toBe(false);
   });
 
-  it("treats an unreadable file as no key, not a crash", async () => {
-    const { writeFileSync, mkdirSync } = await import("fs");
-    mkdirSync(join(file, ".."), { recursive: true });
+  it("treats an unreadable file as no key, not a crash", () => {
+    mkdirSync(dirname(file), { recursive: true });
     writeFileSync(file, "{not json");
-    expect(getCredentialStore().getApiKey("site")).toBeNull();
+    expect(getCredentialStore().getApiKey("acct")).toBeNull();
+  });
+});
+
+describe("memory credential store", () => {
+  it("is chosen by the environment and does not persist", () => {
+    process.env.TEAMWORK_CLI_CREDENTIAL_STORE = "memory";
+    resetCredentialStore();
+    const store = getCredentialStore();
+    expect(store.kind).toBe("memory");
+    expect(store.persistent).toBe(false);
+    store.setApiKey("acct", "k1");
+    expect(store.getApiKey("acct")).toBe("k1");
+    store.deleteApiKey("acct");
+    expect(store.getApiKey("acct")).toBeNull();
+    expect(existsSync(file)).toBe(false);
+  });
+});
+
+// A fake keychain, so these tests can never touch a real one.
+describe("keychain with file fallback", () => {
+  function fakeKeychain(behavior: "works" | "throws" | "drops-writes" = "works"): KeyStore & { keys: Map<string, string> } {
+    const keys = new Map<string, string>();
+    return {
+      keys,
+      getApiKey(account) {
+        if (behavior === "throws") throw new Error("User interaction is not allowed.");
+        return keys.get(account) ?? null;
+      },
+      setApiKey(account, apiKey) {
+        if (behavior === "throws") throw new Error("User interaction is not allowed.");
+        if (behavior === "works") keys.set(account, apiKey);
+      },
+      deleteApiKey(account) {
+        if (behavior === "throws") throw new Error("User interaction is not allowed.");
+        keys.delete(account);
+      },
+    };
+  }
+
+  it("uses the keychain and creates no file when the keychain works", () => {
+    const keychain = fakeKeychain();
+    const store = new KeyringWithFileFallback(keychain, new FileCredentialStore());
+    expect(store.setApiKey("acct", "k1")).toBe("keyring");
+    expect(keychain.keys.get("acct")).toBe("k1");
+    expect(existsSync(file)).toBe(false);
+    expect(store.getApiKey("acct")).toBe("k1");
+  });
+
+  it("uses the file when a closed keychain throws", () => {
+    const store = new KeyringWithFileFallback(fakeKeychain("throws"), new FileCredentialStore());
+    expect(store.setApiKey("acct", "k1")).toBe("file");
+    expect(store.getApiKey("acct")).toBe("k1");
+    expect(existsSync(file)).toBe(true);
+  });
+
+  it("reads the write back, so a keychain that drops writes falls back to the file", () => {
+    const store = new KeyringWithFileFallback(fakeKeychain("drops-writes"), new FileCredentialStore());
+    expect(store.setApiKey("acct", "k1")).toBe("file");
+    expect(store.getApiKey("acct")).toBe("k1");
+  });
+
+  it("updates an existing file when a new key goes to the keychain", () => {
+    const fileStore = new FileCredentialStore();
+    fileStore.setApiKey("acct", "old");
+    const store = new KeyringWithFileFallback(fakeKeychain(), fileStore);
+    expect(store.setApiKey("acct", "new")).toBe("keyring");
+    expect(fileStore.getApiKey("acct")).toBe("new");
+  });
+
+  it("clears the file even when the keychain cannot be cleared", () => {
+    const store = new KeyringWithFileFallback(fakeKeychain("throws"), new FileCredentialStore());
+    store.setApiKey("acct", "k1");
+    store.deleteApiKey("acct");
+    expect(store.getApiKey("acct")).toBeNull();
   });
 });

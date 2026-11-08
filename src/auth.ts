@@ -15,26 +15,28 @@ import { dirname, join } from "node:path";
 const SERVICE = "teamwork-cli";
 const require = createRequire(import.meta.url);
 
+export type StoreKind = "keyring" | "file" | "memory";
+
 export interface CredentialStore {
-  readonly kind: "keyring" | "file" | "memory";
+  readonly kind: StoreKind;
   readonly persistent: boolean;
   getApiKey(siteName: string): string | null;
   /** Returns where the key went, which can differ from `kind` for the chained store. */
-  setApiKey(siteName: string, apiKey: string): CredentialStore["kind"] | void;
+  setApiKey(siteName: string, apiKey: string): StoreKind | void;
   deleteApiKey(siteName: string): void;
 }
+
+/** The part of a store the chained store needs. Tests pass a fake keychain here. */
+export type KeyStore = Pick<CredentialStore, "getApiKey" | "setApiKey" | "deleteApiKey">;
 
 function accountKey(siteName: string): string {
   return `apiKey:${siteName}`;
 }
 
-class KeyringCredentialStore implements CredentialStore {
-  readonly kind = "keyring" as const;
-  readonly persistent = true;
+class KeyringCredentialStore implements KeyStore {
   private Entry: typeof import("@napi-rs/keyring").Entry;
 
   constructor() {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     this.Entry = require("@napi-rs/keyring").Entry;
   }
 
@@ -50,22 +52,11 @@ class KeyringCredentialStore implements CredentialStore {
     this.entry(siteName).setPassword(apiKey);
   }
 
-  deleteApiKey(siteName: string): boolean {
-    return this.entry(siteName).deletePassword();
+  deleteApiKey(siteName: string): void {
+    this.entry(siteName).deletePassword();
   }
 }
 
-/**
- * A private file for the key, readable only by its owner.
- *
- * The keychain is closed to SSH sessions on macOS: reads come back empty and
- * writes fail with "User interaction is not allowed". Without this file, a
- * session on a headless Mac could never sign in.
- *
- * On Windows the mode bits below have no effect. There the file relies on the
- * permissions of the user's profile folder, and Credential Manager is normally
- * available, so the file is rarely used.
- */
 export function credentialsFilePath(): string {
   return (
     process.env.TEAMWORK_CLI_CREDENTIALS_FILE ||
@@ -73,7 +64,18 @@ export function credentialsFilePath(): string {
   );
 }
 
-class FileCredentialStore implements CredentialStore {
+/**
+ * A private file for the key, readable only by its owner.
+ *
+ * The keychain is closed to SSH sessions on macOS: reads come back empty and
+ * writes fail with "User interaction is not allowed". Linux servers often have
+ * no keychain service at all. Without this file, those sessions could not sign in.
+ *
+ * On Windows the mode bits below have no effect. There the file relies on the
+ * permissions of the user's profile folder, and Credential Manager is normally
+ * available, so the file is rarely used.
+ */
+export class FileCredentialStore implements CredentialStore {
   readonly kind = "file" as const;
   readonly persistent = true;
 
@@ -107,9 +109,14 @@ class FileCredentialStore implements CredentialStore {
   }
 
   private write(data: Record<string, string>): void {
+    const dir = dirname(this.path);
     const tmp = `${this.path}.${process.pid}.tmp`;
     try {
-      mkdirSync(dirname(this.path), { recursive: true, mode: 0o700 });
+      mkdirSync(dir, { recursive: true, mode: 0o700 });
+      // Saving settings can create this CLI's folder first, with the default mode.
+      // Tighten that folder only. A folder someone named through the environment
+      // variable is theirs, and may hold other files.
+      if (dir === configDir()) chmodSync(dir, 0o700);
       writeFileSync(tmp, JSON.stringify(data, null, 2) + "\n", { mode: 0o600 });
       chmodSync(tmp, 0o600);
       renameSync(tmp, this.path);
@@ -148,12 +155,12 @@ class FileCredentialStore implements CredentialStore {
  * key goes to the file. When a file already exists, it is updated too, so a
  * new key saved from the desktop does not leave SSH sessions on the old one.
  */
-class KeyringWithFileFallback implements CredentialStore {
+export class KeyringWithFileFallback implements CredentialStore {
   readonly kind = "keyring" as const;
   readonly persistent = true;
 
   constructor(
-    private readonly keyring: KeyringCredentialStore,
+    private readonly keyring: KeyStore,
     private readonly file: FileCredentialStore
   ) {}
 
@@ -183,7 +190,7 @@ class KeyringWithFileFallback implements CredentialStore {
     try {
       this.keyring.deleteApiKey(siteName);
     } catch {
-      // A blocked keychain cannot be cleared from here; the file still is.
+      // A blocked keychain cannot be cleared from here. The file still can be.
     }
     this.file.deleteApiKey(siteName);
   }
@@ -225,7 +232,7 @@ export function getCredentialStore(): CredentialStore {
   try {
     require.resolve("@napi-rs/keyring");
     const keyring = new KeyringCredentialStore();
-    keyring.getApiKey("__teamwork_cli_probe__");
+    keyring.getApiKey("__teamwork_cli_probe__"); // a real keychain read, to confirm it works
     cachedStore = new KeyringWithFileFallback(keyring, new FileCredentialStore());
   } catch {
     cachedStore = new FileCredentialStore();
@@ -234,14 +241,21 @@ export function getCredentialStore(): CredentialStore {
   return cachedStore;
 }
 
-export function getCredentialStoreInfo(): {
-  kind: CredentialStore["kind"];
-  persistent: boolean;
-} {
+export function getCredentialStoreInfo(): { kind: StoreKind; persistent: boolean } {
   const store = getCredentialStore();
   return { kind: store.kind, persistent: store.persistent };
 }
 
+/** A plain name for where a key went, for messages to the user. */
+export function storeLabel(kind: StoreKind): string {
+  if (kind === "file") return `private credentials file (${credentialsFilePath()})`;
+  if (kind !== "keyring") return "session (not saved)";
+  if (process.platform === "darwin") return "macOS Keychain";
+  if (process.platform === "win32") return "Windows Credential Manager";
+  return "OS keyring";
+}
+
+/** Test seam: drop the cached store so a test can resolve it again. */
 export function resetCredentialStore(): void {
   cachedStore = null;
 }

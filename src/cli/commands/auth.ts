@@ -1,13 +1,12 @@
 import { ConfigError, UsageError } from "../../errors.js";
 import pc from "picocolors";
-import { getCredentialStore } from "../../auth.js";
+import { getCredentialStore, storeLabel } from "../../auth.js";
 import {
   getSiteName,
   setSiteName,
   clearSiteName,
 } from "../../config.js";
 import { reporter } from "../output.js";
-import { storeLabel } from "./login.js";
 
 export type AuthOpts = {
   json?: boolean;
