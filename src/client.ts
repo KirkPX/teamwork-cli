@@ -713,7 +713,15 @@ export function buildUrl(
   path: string,
   params?: Record<string, string | number | boolean | undefined>
 ): string {
-  const url = new URL(path, base);
+  let url: URL;
+  try {
+    url = new URL(path, base);
+  } catch {
+    throw new UsageError(
+      `Cannot build a request address from "${path}" on "${base}".`,
+      "Check the site name: it is the part before .teamwork.com. `teamwork auth` shows the one in use."
+    );
+  }
   if (url.origin !== new URL(base).origin) {
     throw new UsageError(
       `Refusing to send a request to ${url.host}: requests go only to ${new URL(base).host}.`,
