@@ -80,6 +80,14 @@ program
   });
 
 program
+  .command("whoami")
+  .description("Show who the stored key signs in as, checked with Teamwork")
+  .action(async (opts) => {
+    const { whoamiCommand } = await import("./cli/commands/whoami.js");
+    await whoamiCommand({ ...program.opts(), ...opts });
+  });
+
+program
   .command("auth")
   .description("Manage Teamwork credentials")
   .option("--status", "Show current auth status")

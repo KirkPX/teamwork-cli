@@ -393,8 +393,11 @@ is not a terminal or `--json` is set. It stops with exit code 1 instead, so scri
 # Sign in
 teamwork login
 
-# Check status
+# Check what is saved on this machine
 teamwork auth
+
+# Check with Teamwork who the saved key signs in as
+teamwork whoami
 
 # Sign out
 teamwork logout
