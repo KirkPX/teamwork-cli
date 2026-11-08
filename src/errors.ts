@@ -155,7 +155,9 @@ export function safeErrorMessage(raw: string): string {
 
 function redactUrlCredentials(msg: string): string {
   return msg.replace(
-    /(?<=:\/{2})[^@]+@/g,
+    // Stops at a space or slash, so it hides only the user:password part of one
+    // address, not the text up to some later "@".
+    /(?<=:\/{2})[^@\s/]+@/g,
     "****@"
   );
 }

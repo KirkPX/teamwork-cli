@@ -28,7 +28,11 @@ const presetSchema = z
  * the command, because ignoring it would allow the writes it was meant to block.
  */
 export const settingsSchema = z.strictObject({
-  siteName: z.string().trim().min(1).optional(),
+  siteName: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9-]+(\.teamwork\.com)?$/i, "must be the part before .teamwork.com, such as acme")
+    .optional(),
   readOnly: z.boolean().optional(),
   timeoutMs: z.number().int().positive().max(600_000).optional(),
   projectPresets: z
