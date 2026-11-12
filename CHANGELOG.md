@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.2
+
+- **`teamwork login --json` prints only JSON on stdout.** The browser sign-in's status
+  lines ("Opened …", "Waiting …") now go to stderr, with the other notes for a person.
+
 ## 0.4.1
 
 - **On Windows, the sign-in page opens with its whole address.** Windows reads `&` in an
