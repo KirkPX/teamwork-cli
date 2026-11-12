@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.1
+
+- **On Windows, the sign-in page opens with its whole address.** Windows reads `&` in an
+  address as the end of a command, so the page opened with only part of its address.
+- **The sign-in page keeps working after a malformed request.** A request with no
+  settings in it stopped the sign-in. It is now refused, and the page keeps listening.
+
 ## 0.4.0
 
 You need **Node.js 22.18, 24.11 or newer**. On an older Node, `npm run setup` stops with
