@@ -63,7 +63,7 @@ through the installed command, so it still reports when the command itself is
 not reachable yet:
 
 ```
-OK   Node.js: v20.11.0
+OK   Node.js: v24.11.1
 OK   Platform: win32/x64
 WARN teamwork on PATH: not found — the `teamwork` command will not be recognised yet
 

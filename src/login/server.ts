@@ -69,6 +69,13 @@ export async function runBrowserLogin(
           return;
         }
 
+        // Valid JSON can still be null, a number or a list. Refuse it here and
+        // keep listening, instead of crashing on the field reads below.
+        if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+          respond(res, 400, { error: "Could not read that request." });
+          return;
+        }
+
         if (payload.nonce !== nonce) {
           respond(res, 403, { error: "This login page has expired. Run `teamwork login` again." });
           return;

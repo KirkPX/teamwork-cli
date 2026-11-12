@@ -3,7 +3,7 @@ import { normalizeSiteName, verifyApiKey, LoginError } from "../src/login/discov
 import { runBrowserLogin } from "../src/login/server.js";
 import { loginPage } from "../src/login/page.js";
 import path from "node:path";
-import { findOpener, openBrowser } from "../src/login/browser.js";
+import { findOpener, openBrowser, openerArgument } from "../src/login/browser.js";
 import { TeamworkClient } from "../src/client.js";
 
 describe("normalizeSiteName", () => {
@@ -210,6 +210,20 @@ describe("openBrowser", () => {
   });
 });
 
+describe("openerArgument", () => {
+  const url = "http://127.0.0.1:5000/?nonce=a&site=b";
+
+  it("escapes cmd's special characters on Windows, so the whole URL reaches the browser", () => {
+    expect(openerArgument(url, "win32")).toBe("http://127.0.0.1:5000/?nonce=a^&site=b");
+    expect(openerArgument("a|b<c>d^e", "win32")).toBe("a^|b^<c^>d^^e");
+  });
+
+  it("leaves the URL alone elsewhere", () => {
+    expect(openerArgument(url, "darwin")).toBe(url);
+    expect(openerArgument(url, "linux")).toBe(url);
+  });
+});
+
 describe("runBrowserLogin", () => {
   beforeEach(() => {
     // Keep the test from launching a real browser window.
@@ -268,6 +282,25 @@ describe("runBrowserLogin", () => {
     );
 
     expect(response.status).toBe(200);
+    await expect(pending).resolves.toEqual(account);
+  });
+
+  it("answers 400 to a body that is valid JSON but not an object, and keeps listening", async () => {
+    const account = { siteName: "acmecorp", userName: null, email: null };
+    const accept = vi.fn().mockResolvedValue(account);
+    const send = (base: string, body: unknown) =>
+      fetch(`${base}/callback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+    const { pending, response, base, nonce } = await drive(accept as never, (b) => send(b, null));
+    expect(response.status).toBe(400);
+    for (const body of [7, ["x"]]) expect((await send(base, body)).status).toBe(400);
+    expect(accept).not.toHaveBeenCalled();
+
+    expect((await send(base, { apiKey: "twp_abc", nonce })).status).toBe(200);
     await expect(pending).resolves.toEqual(account);
   });
 

@@ -17,7 +17,7 @@ export function openBrowser(url: string): boolean {
   if (!opener) return false;
 
   try {
-    const child = spawn(opener.command, [...opener.args, url], {
+    const child = spawn(opener.command, [...opener.args, openerArgument(url)], {
       stdio: "ignore",
       detached: true,
       windowsHide: true,
@@ -32,6 +32,18 @@ export function openBrowser(url: string): boolean {
 }
 
 export type Opener = { command: string; args: string[] };
+
+/**
+ * Prepare the URL for the opener.
+ *
+ * On Windows the URL goes through `cmd /c start`, and cmd reads `&`, `|`, `<`,
+ * `>` and `^` as its own. Without escaping, everything after the first `&` in
+ * a URL is lost, so a sign-in page with two settings in its address opens
+ * with one.
+ */
+export function openerArgument(url: string, platform: NodeJS.Platform = process.platform): string {
+  return platform === "win32" ? url.replace(/[\^&|<>]/g, "^$&") : url;
+}
 
 /**
  * Pick the platform's URL opener.
