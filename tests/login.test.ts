@@ -228,7 +228,7 @@ describe("runBrowserLogin", () => {
   beforeEach(() => {
     // Keep the test from launching a real browser window.
     process.env.TEAMWORK_CLI_NO_BROWSER = "1";
-    vi.spyOn(console, "log").mockImplementation(() => undefined);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -246,7 +246,7 @@ describe("runBrowserLogin", () => {
     post: (base: string, nonce: string) => Promise<Response>
   ) {
     let captured: { base: string; nonce: string } | null = null;
-    const logSpy = vi.spyOn(console, "log");
+    const logSpy = vi.spyOn(console, "error");
 
     const pending = runBrowserLogin({ accept, timeoutMs: 10_000 });
 
@@ -268,6 +268,23 @@ describe("runBrowserLogin", () => {
     const response = await post(captured.base, captured.nonce);
     return { pending, response, ...captured };
   }
+
+  it("prints its status lines on stderr, never stdout", async () => {
+    const outSpy = vi.spyOn(console, "log");
+    const account = { siteName: "acmecorp", userName: "Ada", email: null };
+    const { pending, response } = await drive(
+      async () => account,
+      (base, nonce) =>
+        fetch(`${base}/callback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apiKey: "twp_abc", nonce }),
+        })
+    );
+    expect(response.status).toBe(200);
+    await pending;
+    expect(outSpy).not.toHaveBeenCalled();
+  });
 
   it("accepts a pasted token and returns the verified account", async () => {
     const account = { siteName: "acmecorp", userName: "Ada", email: null };

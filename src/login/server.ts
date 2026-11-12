@@ -138,11 +138,12 @@ export async function runBrowserLogin(
       const url = `http://127.0.0.1:${port}`;
 
       if (openBrowser(url)) {
-        console.log(`Opened ${pc.cyan(url)} in your browser.`);
+        // Status lines go to stderr, so `login --json` keeps stdout for JSON alone.
+        console.error(`Opened ${pc.cyan(url)} in your browser.`);
       } else {
-        console.log(`Open this page to finish signing in: ${pc.cyan(url)}`);
+        console.error(`Open this page to finish signing in: ${pc.cyan(url)}`);
       }
-      console.log(pc.dim("Waiting for your Teamwork token... (Ctrl+C to cancel)"));
+      console.error(pc.dim("Waiting for your Teamwork token... (Ctrl+C to cancel)"));
     });
   });
 }

@@ -34,7 +34,7 @@ program.configureOutput({
 program
   .name("teamwork")
   .description("Cross-platform Teamwork.com CLI")
-  .version("0.4.1")
+  .version("0.4.2")
   .option("--json", "emit machine-readable JSON")
   .option("--read-only", "refuse any command that would change remote data")
   .option("--verbose", "emit diagnostic details");
